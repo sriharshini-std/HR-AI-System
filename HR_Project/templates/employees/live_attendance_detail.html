@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Attendance Detail{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ employee.name }} Attendance Detail</h1>
+    <div>
+        <span class="tag">{{ today.strftime('%Y-%m-%d') }}</span>
+    </div>
+</div>
+
+<div class="card-grid">
+    <div class="card compact-card">
+        <h3>Status</h3>
+        <p>{{ attendance_status }}</p>
+    </div>
+    <div class="card compact-card">
+        <h3>Login Time</h3>
+        <p>{{ attendance_row.login_time.strftime('%I:%M %p') if attendance_row and attendance_row.login_time else '-' }}</p>
+    </div>
+    <div class="card compact-card">
+        <h3>Logout Time</h3>
+        <p>{{ attendance_row.logout_time.strftime('%I:%M %p') if attendance_row and attendance_row.logout_time else '-' }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Today's Project Reports</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Progress</th>
+                <th>Work Summary</th>
+                <th>Blockers</th>
+                <th>Submitted At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in today_reports %}
+            <tr>
+                <td>{{ report.project.name }}</td>
+                <td>{{ report.progress_percent }}%</td>
+                <td>{{ report.work_summary }}</td>
+                <td>{{ report.blockers or '-' }}</td>
+                <td>{{ report.submitted_at.strftime('%I:%M %p') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">No project report submitted for today.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}AI Learning{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>AI Learning Recommendations</h1>
+</div>
+
+<div class="card">
+    <h3>Recommendation Context</h3>
+    <p><strong>Assigned Projects:</strong>
+        {% for project in recommendations.assigned_projects %}
+            <span class="tag">{{ project.name }}</span>
+        {% else %}
+            No ongoing or upcoming assigned projects.
+        {% endfor %}
+    </p>
+    <p><strong>Required Skills:</strong>
+        {% for skill_name in recommendations.required_skill_names %}
+            <span class="tag">{{ skill_name }}</span>
+        {% else %}
+            No project-driven skill requirements found.
+        {% endfor %}
+    </p>
+    <p><strong>Target Skills:</strong>
+        {% for skill_name in recommendations.target_skill_names %}
+            <span class="tag">{{ skill_name }}</span>
+        {% else %}
+            No target skills available right now.
+        {% endfor %}
+    </p>
+    <p><strong>Missing Skills:</strong>
+        {% for skill_name in recommendations.missing_skill_names %}
+            <span class="tag">{{ skill_name }}</span>
+        {% else %}
+            No missing skills detected. Showing upskilling recommendations instead.
+        {% endfor %}
+    </p>
+</div>
+
+<div class="card">
+    <h3>Filter Courses</h3>
+    <form method="get" class="form-grid skill-search-form" id="skillSearchForm">
+        <label for="skillSearchInput">Choose Skills To Search</label>
+        <div
+            class="skill-search-picker"
+            id="skillSearchPicker"
+            data-initial-skills='{{ selected_skill_names | tojson }}'
+            data-required-skills='{{ recommendations.required_skill_names | tojson }}'
+            data-all-skills='{{ recommendations.available_search_skill_names | tojson }}'
+            data-selected-scope="{{ selected_skill_scope }}"
+        >
+            <div class="skill-filter-buttons">
+                <button type="button" class="skill-filter-btn" data-scope="required">Required Skills</button>
+                <button type="button" class="skill-filter-btn" data-scope="all">All Skills</button>
+            </div>
+            <input type="hidden" name="skill_scope" id="skillScopeInput" value="{{ selected_skill_scope }}">
+
+            <div class="skill-search-controls">
+                <input
+                    id="skillSearchInput"
+                    type="text"
+                    class="skill-search-input"
+                    list="skillSearchOptions"
+                    placeholder="Type a skill and add it"
+                >
+            </div>
+            <datalist id="skillSearchOptions">
+            </datalist>
+
+            <div class="tag-wrap skill-selected-tags" id="selectedSkillTags"></div>
+            <div id="selectedSkillInputs"></div>
+        </div>
+        <small class="field-hint">If you do not select skills, AI Learning uses your missing or project-required skills automatically.</small>
+
+        <label for="platform">Platform</label>
+        <select id="platform" name="platform">
+            <option value="">All Platforms</option>
+            {% for platform in platforms %}
+            <option value="{{ platform }}" {% if selected_filters.get('platform') == platform %}selected{% endif %}>{{ platform }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="price_type">Paid / Free</label>
+        <select id="price_type" name="price_type">
+            <option value="">Any</option>
+            {% for item in price_types %}
+            <option value="{{ item }}" {% if selected_filters.get('price_type') == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="delivery_mode">Recorded / Live</label>
+        <select id="delivery_mode" name="delivery_mode">
+            <option value="">Any</option>
+            {% for item in delivery_modes %}
+            <option value="{{ item }}" {% if selected_filters.get('delivery_mode') == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="level">Skill Level</label>
+        <select id="level" name="level">
+            <option value="">Any</option>
+            {% for item in levels %}
+            <option value="{{ item }}" {% if selected_filters.get('level') == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="duration_category">Duration</label>
+        <select id="duration_category" name="duration_category">
+            <option value="">Any</option>
+            {% for item in durations %}
+            <option value="{{ item }}" {% if selected_filters.get('duration_category') == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+        </select>
+
+        <div class="inline-actions">
+            <button class="btn" type="submit">Apply Filters</button>
+            <a class="btn btn-secondary" href="{{ url_for('employees.learning_recommendations') }}">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Recommended Courses</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Course</th>
+                <th>Platform</th>
+                <th>Matched Skills</th>
+                <th>Paid / Free</th>
+                <th>Recorded / Live</th>
+                <th>Level</th>
+                <th>Duration</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in recommendations.courses %}
+            <tr>
+                <td>
+                    <strong>{{ row.course.title }}</strong><br>
+                    <small>{{ row.course.description }}</small>
+                </td>
+                <td>{{ row.course.platform }}</td>
+                <td>{{ row.matched_targets | join(', ') }}</td>
+                <td>{{ row.course.price_type }}</td>
+                <td>{{ row.course.delivery_mode }}</td>
+                <td>{{ row.course.level }}</td>
+                <td>{{ row.course.duration_category }}{% if row.course.duration_text %} ({{ row.course.duration_text }}){% endif %}</td>
+                <td>
+                    {% if row.course.url %}
+                    <a class="btn-link" href="{{ row.course.url }}" target="_blank" rel="noopener noreferrer">{{ row.course.platform }} Link</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8">No course recommendations matched the selected filters.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

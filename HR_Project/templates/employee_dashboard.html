@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ current_user.name.split(' ')[0] }} Dashboard{% endblock %}
+
+{% block content %}
+<h1>{{ current_user.name.split(' ')[0] }} Dashboard</h1>
+<div class="card">
+    <div class="page-header">
+        <h3>Today's Attendance</h3>
+        <a class="btn-link" href="{{ url_for('employees.attendance_detail', employee_id=current_user.id) }}">View Attendance History</a>
+    </div>
+    <p class="attendance-note">Temporary mode: today's clock activity is not recorded yet and resets whenever you refresh the page.</p>
+    <div class="attendance-summary-grid">
+        <div class="attendance-summary-card">
+            <span>Status</span>
+            <strong id="attendanceStatus">Not clocked in</strong>
+        </div>
+        <div class="attendance-summary-card">
+            <span>Clock In Time</span>
+            <strong id="attendanceClockIn">-</strong>
+        </div>
+        <div class="attendance-summary-card">
+            <span>Clock Out Time</span>
+            <strong id="attendanceClockOut">-</strong>
+        </div>
+        <div class="attendance-summary-card">
+            <span>Worked Time</span>
+            <strong id="attendanceNetHours">-</strong>
+        </div>
+    </div>
+
+    <div class="attendance-hud-grid" data-pending-reports="{{ pending_report_projects|length }}">
+        <button class="hud-timer-card hud-action-card hud-work-card" id="clockToggleBtn" type="button">
+            <div class="hud-ring"></div>
+            <div class="hud-ring hud-ring-mid"></div>
+            <div class="hud-ring hud-ring-inner"></div>
+            <div class="hud-center">
+                <span class="hud-label">Work Session Timer</span>
+                <strong id="attendanceLiveTimer">00:00:00</strong>
+                <small id="clockToggleLabel">Tap to clock in</small>
+            </div>
+        </button>
+
+        <button class="hud-timer-card hud-action-card hud-break-card" id="refreshmentBreakBtn" type="button">
+            <div class="hud-ring"></div>
+            <div class="hud-ring hud-ring-mid"></div>
+            <div class="hud-ring hud-ring-inner"></div>
+            <div class="hud-center">
+                <span class="hud-label">Refreshment Break Timer</span>
+                <strong id="refreshmentBreakTimer">00:00:00</strong>
+                <small id="refreshmentBreakValue">Tap to start refreshment break</small>
+            </div>
+        </button>
+
+        <button class="hud-timer-card hud-action-card hud-break-card" id="mealBreakBtn" type="button">
+            <div class="hud-ring"></div>
+            <div class="hud-ring hud-ring-mid"></div>
+            <div class="hud-ring hud-ring-inner"></div>
+            <div class="hud-center">
+                <span class="hud-label">Meal Break Timer</span>
+                <strong id="mealBreakTimer">00:00:00</strong>
+                <small id="mealBreakValue">Tap to start meal break</small>
+            </div>
+        </button>
+
+        <button class="hud-timer-card hud-action-card hud-break-card" id="meetingBreakBtn" type="button">
+            <div class="hud-ring"></div>
+            <div class="hud-ring hud-ring-mid"></div>
+            <div class="hud-ring hud-ring-inner"></div>
+            <div class="hud-center">
+                <span class="hud-label">Meeting Break Timer</span>
+                <strong id="meetingBreakTimer">00:00:00</strong>
+                <small id="meetingBreakValue">Tap to start meeting break</small>
+            </div>
+        </button>
+
+        <div class="hud-timer-card hud-total-card">
+            <div class="hud-ring"></div>
+            <div class="hud-ring hud-ring-mid"></div>
+            <div class="hud-ring hud-ring-inner"></div>
+            <div class="hud-center">
+                <span class="hud-label">Total Break Tracker</span>
+                <strong id="totalBreakTimer">00:00:00</strong>
+                <small id="totalBreakValue">Accumulated break time</small>
+            </div>
+        </div>
+    </div>
+    <p class="attendance-note" id="reportReminderText">
+        {% if pending_report_projects %}
+        Submit today's project reports before clocking out.
+        {% else %}
+        All required project reports for today are submitted.
+        {% endif %}
+    </p>
+</div>
+
+<div class="card">
+    <h3>My Projects</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Start Date</th>
+                <th>Duration</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in my_projects %}
+            <tr>
+                <td>{{ project.name }}</td>
+                <td><span class="tag">{{ project.computed_status }}</span></td>
+                <td>{{ project.start_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ project.duration_days }} days</td>
+                <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=project.id) }}">View</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">No project assignments yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if pending_report_projects %}
+<div id="reportReminderModal" class="modal hidden">
+    <div class="modal-content medium-modal reminder-card reminder-modal-card">
+        <h3>Daily Reporting Reminder</h3>
+        <p>You still have pending daily project reports. Submit them before you clock out.</p>
+        <div class="report-reminder-modal-list">
+            {% for project in pending_report_projects %}
+            <div class="tag">{{ project.name }}</div>
+            {% endfor %}
+        </div>
+        <div class="modal-actions">
+            <button id="reportReminderClose" class="btn btn-secondary" type="button">Close</button>
+            <a class="btn report-reminder-primary" href="{{ url_for('employees.my_project_reports') }}">Open My Reports</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

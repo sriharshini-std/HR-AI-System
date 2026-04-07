@@ -1,0 +1,113 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}STAFFLY{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    {% block head_extras %}{% endblock %}
+</head>
+<body data-admin-authenticated="{% if current_user and current_user.role == 'Admin' %}1{% else %}0{% endif %}">
+    {% if current_user %}
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="brand-lockup">
+                <img src="{{ url_for('static', filename='img/staffly-logo.jpeg') }}" alt="STAFFLY logo" class="brand-logo">
+                <div class="brand-copy">
+                    <h2>STAFFLY</h2>
+                    <small>Workforce & Project Hub</small>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('auth.dashboard') }}" class="{% if request.endpoint == 'auth.dashboard' %}active-nav{% endif %}">Dashboard</a>
+                {% if current_user.role == 'Admin' %}
+                <a href="{{ url_for('employees.list_employees') }}" class="{% if request.endpoint in ['employees.list_employees', 'employees.add_employee', 'employees.edit_employee', 'employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">Employees</a>
+                <a href="{{ url_for('employees.live_attendance') }}" class="{% if request.endpoint == 'employees.live_attendance' %}active-nav{% endif %}">Live Attendance</a>
+                <a href="{{ url_for('employees.admin_leave_requests') }}" class="{% if request.endpoint in ['employees.admin_leave_requests', 'employees.review_leave_request'] %}active-nav{% endif %}">Leave Requests</a>
+                {% else %}
+                <a href="{{ url_for('employees.overall_scores_detail', employee_id=current_user.id) }}" class="{% if request.endpoint in ['employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">My Scores</a>
+                <a href="{{ url_for('employees.leave_requests') }}" class="{% if request.endpoint == 'employees.leave_requests' %}active-nav{% endif %}">My Leave</a>
+                <a href="{{ url_for('employees.my_project_reports') }}" class="{% if request.endpoint == 'employees.my_project_reports' %}active-nav{% endif %}">My Reports</a>
+                <a href="{{ url_for('employees.learning_recommendations') }}" class="{% if request.endpoint == 'employees.learning_recommendations' %}active-nav{% endif %}">AI Learning</a>
+                {% endif %}
+                <a href="{{ url_for('projects.list_projects') }}" class="{% if request.endpoint in ['projects.list_projects', 'projects.project_detail', 'projects.create_project'] %}active-nav{% endif %}">{% if current_user.role == 'Admin' %}Projects{% else %}My Projects{% endif %}</a>
+                <a href="{{ url_for('auth.logout') }}" class="confirm-link" data-confirm-message="Are you sure you want to log out?">Logout</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <button id="mobileMenuToggle" class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="mobileMenuPanel" aria-label="Open menu"><i class="fa-solid fa-bars" style="color: rgb(0, 0, 0);"></i></button>
+                <div>
+                    <strong>{{ current_user.name }}</strong>
+                    {% if current_user.role == 'Admin' %}
+                    <small>System Admin HR</small>
+                    {% else %}
+                    <small>{{ current_user.position }} | {{ current_user.role }}</small>
+                    {% endif %}
+                </div>
+                <div class="topbar-actions">
+                <div class="notification-wrapper">
+                    <a id="notificationBellLink" class="bell-btn bell-link" href="{{ url_for('projects.notifications_page') }}" title="Open all notifications" aria-label="Open all notifications">🔔</a>
+                    <button id="notificationCountBtn" class="notification-count-btn notification-badge-btn" type="button" title="Show unread notifications" aria-label="Show unread notifications">
+                        <span id="notificationCount">{{ unread_count }}</span>
+                    </button>
+                    <div id="notificationDropdown" class="notification-dropdown hidden"></div>
+                </div>
+                </div>
+            </header>
+
+            <nav id="mobileMenuPanel" class="mobile-menu-panel hidden">
+                <a href="{{ url_for('auth.dashboard') }}" class="{% if request.endpoint == 'auth.dashboard' %}active-nav{% endif %}">Dashboard</a>
+                {% if current_user.role == 'Admin' %}
+                <a href="{{ url_for('employees.list_employees') }}" class="{% if request.endpoint in ['employees.list_employees', 'employees.add_employee', 'employees.edit_employee', 'employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">Employees</a>
+                <a href="{{ url_for('employees.live_attendance') }}" class="{% if request.endpoint == 'employees.live_attendance' %}active-nav{% endif %}">Live Attendance</a>
+                <a href="{{ url_for('employees.admin_leave_requests') }}" class="{% if request.endpoint in ['employees.admin_leave_requests', 'employees.review_leave_request'] %}active-nav{% endif %}">Leave Requests</a>
+                {% else %}
+                <a href="{{ url_for('employees.overall_scores_detail', employee_id=current_user.id) }}" class="{% if request.endpoint in ['employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">My Scores</a>
+                <a href="{{ url_for('employees.leave_requests') }}" class="{% if request.endpoint == 'employees.leave_requests' %}active-nav{% endif %}">My Leave</a>
+                <a href="{{ url_for('employees.my_project_reports') }}" class="{% if request.endpoint == 'employees.my_project_reports' %}active-nav{% endif %}">My Reports</a>
+                <a href="{{ url_for('employees.learning_recommendations') }}" class="{% if request.endpoint == 'employees.learning_recommendations' %}active-nav{% endif %}">AI Learning</a>
+                {% endif %}
+                <a href="{{ url_for('projects.list_projects') }}" class="{% if request.endpoint in ['projects.list_projects', 'projects.project_detail', 'projects.create_project'] %}active-nav{% endif %}">{% if current_user.role == 'Admin' %}Projects{% else %}My Projects{% endif %}</a>
+                <a href="{{ url_for('auth.logout') }}" class="confirm-link" data-confirm-message="Are you sure you want to log out?">Logout</a>
+            </nav>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-wrap">
+                        {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+        {% block public_content %}{% endblock %}
+    {% endif %}
+
+    <div id="confirmModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Confirm Action</h3>
+            <p id="confirmMessage">Are you sure?</p>
+            <div class="modal-actions">
+                <button id="confirmCancel" class="btn btn-secondary" type="button">Cancel</button>
+                <button id="confirmOk" class="btn" type="button">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    {% if admin_recent_login and current_user and current_user.role == 'Admin' %}
+    <script>
+        window.sessionStorage.setItem("admin_code_verified", "1");
+    </script>
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}My Leave{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Leave Requests</h1>
+</div>
+
+<div class="card-grid">
+    <div class="card compact-card">
+        <h3>Available Days</h3>
+        <p>{{ leave_balance.available_days }}</p>
+    </div>
+    <div class="card compact-card">
+        <h3>Used Days</h3>
+        <p>{{ leave_balance.used_days }}</p>
+    </div>
+    <div class="card compact-card">
+        <h3>Remaining Days</h3>
+        <p>{{ leave_balance.remaining_days }}</p>
+    </div>
+    <div class="card compact-card">
+        <h3>Pending Days</h3>
+        <p>{{ leave_balance.pending_days }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Apply for Leave in Advance</h3>
+    <form method="post" class="form-grid">
+        <label for="leave_type">Leave Type</label>
+        <select id="leave_type" name="leave_type">
+            {% for leave_type in leave_types %}
+            <option value="{{ leave_type }}">{{ leave_type }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="start_date">Start Date</label>
+        <input id="start_date" name="start_date" type="date" required>
+
+        <label for="end_date">End Date</label>
+        <input id="end_date" name="end_date" type="date" required>
+
+        <label for="reason">Reason</label>
+        <textarea id="reason" name="reason" rows="4" placeholder="Enter the reason for your leave request." required></textarea>
+
+        <button class="btn" type="submit">Submit Leave Request</button>
+    </form>
+    <p class="attendance-note">
+        Leave balance is tracked for {{ leave_balance.year }}. Requests must be submitted for future working days only.
+        You can currently request {{ leave_balance.requestable_days }} more working day(s).
+    </p>
+</div>
+
+<div class="card">
+    <h3>Leave History</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Applied On</th>
+                <th>Leave Type</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Days</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Admin Note</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave_request in my_leave_requests %}
+            <tr>
+                <td>{{ leave_request.applied_at.strftime('%Y-%m-%d') }}</td>
+                <td>{{ leave_request.leave_type }}</td>
+                <td>{{ leave_request.start_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ leave_request.end_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ leave_request.total_days }}</td>
+                <td><span class="tag">{{ leave_request.status }}</span></td>
+                <td>{{ leave_request.reason }}</td>
+                <td>{{ leave_request.admin_note or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8">No leave requests found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

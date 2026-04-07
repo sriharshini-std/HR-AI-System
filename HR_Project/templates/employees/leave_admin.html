@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Leave Requests{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Leave Requests</h1>
+</div>
+<p class="attendance-note">Annual leave allocation: {{ annual_leave_days }} working days per employee.</p>
+
+<div class="card-grid">
+    <a class="card dashboard-link-card" href="{{ url_for('employees.admin_leave_requests', status='Pending') }}">
+        <h3>Pending</h3>
+        <p>{{ status_counts.Pending }}</p>
+    </a>
+    <a class="card dashboard-link-card" href="{{ url_for('employees.admin_leave_requests', status='Approved') }}">
+        <h3>Approved</h3>
+        <p>{{ status_counts.Approved }}</p>
+    </a>
+    <a class="card dashboard-link-card" href="{{ url_for('employees.admin_leave_requests', status='Rejected') }}">
+        <h3>Rejected</h3>
+        <p>{{ status_counts.Rejected }}</p>
+    </a>
+    <a class="card dashboard-link-card" href="{{ url_for('employees.admin_leave_requests') }}">
+        <h3>All Requests</h3>
+        <p>View complete list</p>
+    </a>
+</div>
+
+<div class="card">
+    <h3>Pending Review</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Type</th>
+                <th>Dates</th>
+                <th>Days</th>
+                <th>Reason</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave_request in pending_requests %}
+            <tr>
+                <td>{{ leave_request.employee.name }}<br><small>{{ leave_request.employee.email }}</small></td>
+                <td>{{ leave_request.leave_type }}</td>
+                <td>{{ leave_request.start_date.strftime('%Y-%m-%d') }} to {{ leave_request.end_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ leave_request.total_days }}</td>
+                <td>{{ leave_request.reason }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('employees.review_leave_request', leave_request_id=leave_request.id) }}" class="form-grid">
+                        <textarea name="admin_note" rows="2" placeholder="Optional review note"></textarea>
+                        <div class="inline-actions">
+                            <button class="btn" type="submit" name="decision" value="Approved">Approve</button>
+                            <button class="btn btn-secondary" type="submit" name="decision" value="Rejected">Reject</button>
+                        </div>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6">No pending leave requests.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>{% if selected_status %}{{ selected_status }}{% else %}All{% endif %} Leave Requests</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Applied On</th>
+                <th>Employee</th>
+                <th>Type</th>
+                <th>Dates</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Admin Note</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave_request in leave_requests %}
+            <tr>
+                <td>{{ leave_request.applied_at.strftime('%Y-%m-%d') }}</td>
+                <td>{{ leave_request.employee.name }}</td>
+                <td>{{ leave_request.leave_type }}</td>
+                <td>{{ leave_request.start_date.strftime('%Y-%m-%d') }} to {{ leave_request.end_date.strftime('%Y-%m-%d') }}</td>
+                <td><span class="tag">{{ leave_request.status }}</span></td>
+                <td>{{ leave_request.reason }}</td>
+                <td>{{ leave_request.admin_note or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7">No leave requests found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

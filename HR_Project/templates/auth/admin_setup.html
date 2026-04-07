@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Admin Setup{% endblock %}
+
+{% block public_content %}
+<div class="login-page">
+    <form method="post" class="login-card login-card-wide">
+        <h2>Admin Setup</h2>
+        <p>Create a login code for an authorized admin email. Admin setup and admin login stay separate.</p>
+
+        <label>Admin Email</label>
+        <select name="email" required>
+            <option value="">Select admin email</option>
+            {% for email in admin_emails %}
+            <option value="{{ email }}" {% if selected_email == email %}selected{% endif %}>{{ email }}</option>
+            {% endfor %}
+        </select>
+        <small class="field-hint">Only the authorized admin emails can be configured here.</small>
+
+        <label>Create Security Code</label>
+        <div class="password-field">
+            <input type="password" name="security_code" required>
+            <button type="button" class="password-toggle" data-toggle-password aria-label="Show security code">
+                <i class="fa-regular fa-eye"></i>
+            </button>
+        </div>
+
+        <label>Confirm Security Code</label>
+        <div class="password-field">
+            <input type="password" name="confirm_security_code" required>
+            <button type="button" class="password-toggle" data-toggle-password aria-label="Show security code">
+                <i class="fa-regular fa-eye"></i>
+            </button>
+        </div>
+
+        <small>Use a security code in this exact order: 3 uppercase letters, 3 numbers, and 1 special symbol. Example: ABC123!</small>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <button type="submit" class="btn">Save Admin Login Code</button>
+        <small><a class="btn-link" href="{{ url_for('auth.admin_login') }}">Back to admin login</a></small>
+        <small><a class="btn-link" href="{{ url_for('auth.home') }}">Back to home</a></small>
+    </form>
+</div>
+{% endblock %}

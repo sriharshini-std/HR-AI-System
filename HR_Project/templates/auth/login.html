@@ -1,0 +1,40 @@
+﻿{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block public_content %}
+<div class="login-page">
+    <form method="post" class="login-card">
+        <h2>Admin Login</h2>
+        <p>Sign in with an authorized admin email and the login code created during admin setup.</p>
+
+        <label>Email</label>
+        <select name="email" required>
+            <option value="">Select admin email</option>
+            {% for email in admin_emails %}
+            <option value="{{ email }}" {% if selected_email == email %}selected{% endif %}>{{ email }}</option>
+            {% endfor %}
+        </select>
+        <small>Authorized admin emails: {{ admin_emails|join(', ') }}</small>
+
+        <label>Security Code</label>
+        <div class="password-field">
+            <input type="password" name="security_code" required>
+            <button type="button" class="password-toggle" data-toggle-password aria-label="Show security code">
+                <i class="fa-regular fa-eye"></i>
+            </button>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <button type="submit" class="btn">Login</button>
+        <small><a class="btn-link" href="{{ url_for('auth.admin_setup') }}">Go to admin setup</a></small>
+        <small><a class="btn-link" href="{{ url_for('auth.home') }}">Back to home</a></small>
+    </form>
+</div>
+{% endblock %}

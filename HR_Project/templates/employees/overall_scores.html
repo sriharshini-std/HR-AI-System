@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Overall Scores{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Overall Scores</h1>
+</div>
+
+<div class="card">
+    <p><strong>Employee:</strong> {{ employee.name }} ({{ employee.position }})</p>
+    <p><strong>Overall Score:</strong> {{ overall_score }}%</p>
+    <p><strong>Formula:</strong> Overall Score = (0.4 x Skill Score) + (0.3 x Performance Score) + (0.3 x Attendance Score)</p>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Score Type</th>
+                <th>Percentage</th>
+                <th>Open Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Attendance Score</td>
+                <td>{{ attendance_score }}%</td>
+                <td><a class="btn-link" href="{{ url_for('employees.attendance_detail', employee_id=employee.id) }}">View Attendance Details</a></td>
+            </tr>
+            <tr>
+                <td>Performance Score</td>
+                <td>{{ performance_score }}%</td>
+                <td><a class="btn-link" href="{{ url_for('employees.performance_detail', employee_id=employee.id) }}">View Performance Details</a></td>
+            </tr>
+            <tr>
+                <td>Skill Score</td>
+                <td>{{ skill_score }}%</td>
+                <td><a class="btn-link" href="{{ url_for('employees.skill_score_detail', employee_id=employee.id) }}">View Skill Details</a></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

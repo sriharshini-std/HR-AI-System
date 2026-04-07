@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fa-solid fa-magnifying-glass"></i> Search</h1>
+</div>
+
+<div class="card">
+    <form method="get" class="global-search-form">
+        <input
+            type="text"
+            name="q"
+            value="{{ query }}"
+            placeholder="Search employee name, email, department, project, or skill"
+            aria-label="Search employees and projects"
+        >
+        <button type="submit" class="btn">
+            <i class="fa-solid fa-magnifying-glass"></i> Search
+        </button>
+    </form>
+</div>
+
+{% if query %}
+<div class="search-results-grid">
+    <div class="card">
+        <div class="page-header">
+            <h3>Employee Results</h3>
+            <span class="tag">{{ employee_results|length }}</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Position</th>
+                    <th>Department</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for employee in employee_results %}
+                <tr>
+                    <td>{{ employee.id }}</td>
+                    <td>{{ employee.name }}</td>
+                    <td>{{ employee.email }}</td>
+                    <td>{{ employee.position }}</td>
+                    <td>{{ employee.department or '-' }}</td>
+                    <td><a class="btn-link" href="{{ url_for('employees.edit_employee', employee_id=employee.id) }}">Open Employee</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No employees matched your search.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="page-header">
+            <h3>Project Results</h3>
+            <span class="tag">{{ project_results|length }}</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in project_results %}
+                <tr>
+                    <td>{{ project.name }}</td>
+                    <td><span class="tag">{{ project.computed_status }}</span></td>
+                    <td>{{ project.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ project.end_date.strftime('%Y-%m-%d') }}</td>
+                    <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=project.id) }}">Open Project</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No projects matched your search.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Attendance Details{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Attendance Details</h1>
+    {% if current_user.role == 'Admin' %}
+    <a class="btn btn-secondary" href="{{ url_for('employees.list_employees') }}">Back to Employees</a>
+    {% else %}
+    <a class="btn btn-secondary" href="{{ url_for('auth.dashboard') }}">Back to Dashboard</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <p><strong>Employee:</strong> {{ employee.name }} ({{ employee.position }})</p>
+    <p><strong>Attendance Score:</strong> {{ attendance_score }}%</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Total Working Days</th>
+                <th>Days Present</th>
+                <th>Days Absent</th>
+                <th>Late Arrivals</th>
+                <th>Total Hours Worked</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ attendance_metrics.working_days }}</td>
+                <td>{{ attendance_metrics.present_days }}</td>
+                <td>{{ attendance_metrics.absent_days }}</td>
+                <td>{{ attendance_metrics.late_arrivals }}</td>
+                <td>{{ attendance_metrics.total_hours_worked }}</td>
+            </tr>
+        </tbody>
+    </table>
+    <p><strong>Attendance %</strong> = Present Days / Working Days × 100 = {{ attendance_metrics.attendance_percentage }}%</p>
+    <p><strong>Punctuality %</strong> = On-time Days / Present Days × 100 = {{ attendance_metrics.punctuality_percentage }}%</p>
+    <p><strong>Work Hour Completion %</strong> = Actual Hours / Expected Hours × 100 = {{ attendance_metrics.work_hour_completion_percentage }}%</p>
+    <p><strong>Attendance Score</strong> = (0.6 × Attendance %) + (0.2 × Punctuality %) + (0.2 × Work Hour Completion %) = {{ attendance_metrics.attendance_score }}%</p>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Clock In Time</th>
+                <th>Clock Out Time</th>
+                <th>Refreshment Break</th>
+                <th>Meal Break</th>
+                <th>Meeting Break</th>
+                <th>Total Breaks</th>
+                <th>Duration (Hours)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in records %}
+            <tr>
+                <td>{{ row.record_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ row.login_time.strftime('%I:%M %p') if row.login_time else '-' }}</td>
+                <td>{{ row.logout_time.strftime('%I:%M %p') if row.logout_time else '-' }}</td>
+                <td>{{ row.coffee_break_minutes or 0 }} min</td>
+                <td>{{ row.food_break_minutes or 0 }} min</td>
+                <td>{{ row.meeting_break_minutes or 0 }} min</td>
+                <td>{{ row.total_break_minutes }} min</td>
+                <td>{{ row.duration_hours|round(2) if row.duration_hours is not none else '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8">No attendance records found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

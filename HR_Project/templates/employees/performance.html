@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Performance Details{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Performance Details</h1>
+    <a class="btn btn-secondary" href="{{ url_for('employees.list_employees') }}">Back to Employees</a>
+</div>
+
+<div class="card">
+    <p><strong>Employee:</strong> {{ employee.name }} ({{ employee.position }})</p>
+    <p><strong>Performance Score:</strong> {{ performance_metrics.performance_score }}%</p>
+    <p><strong>Project Rating %</strong> = (Rating / 5) x 100 = {{ performance_metrics.project_rating_percentage }}%</p>
+    <p><strong>Task Completion %</strong> = (Completed / Assigned) x 100 = {{ performance_metrics.task_completion_percentage }}%</p>
+    <p><strong>Deadline Adherence %</strong> = (On-time Projects / Total Projects) x 100 = {{ performance_metrics.deadline_adherence_percentage }}%</p>
+    <p><strong>Peer Feedback %</strong> = (Feedback / 5) x 100 = {{ performance_metrics.peer_feedback_percentage }}%</p>
+    <p><strong>Performance Score</strong> = (0.4 x Project Rating %) + (0.3 x Task Completion %) + (0.2 x Deadline Adherence %) + (0.1 x Peer Feedback %) = {{ performance_metrics.performance_score }}%</p>
+</div>
+
+<div class="card">
+    <h3>Project Performance Data</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Rating (1-5)</th>
+                <th>Deadline Met</th>
+                <th>Tasks Completed</th>
+                <th>Tasks Assigned</th>
+                <th>Completed On</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in project_rows %}
+            <tr>
+                <td>{{ row.project_name }}</td>
+                <td>{{ row.rating }}</td>
+                <td>{{ "Yes" if row.deadline_met else "No" }}</td>
+                <td>{{ row.tasks_completed }}</td>
+                <td>{{ row.tasks_assigned }}</td>
+                <td>{{ row.completed_on.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6">No project performance data found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Feedback Data</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Feedback Rating (1-5)</th>
+                <th>Feedback</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in feedback_rows %}
+            <tr>
+                <td>{{ row.project_name }}</td>
+                <td>{{ row.feedback_score }}</td>
+                <td>{{ row.feedback_note or "-" }}</td>
+                <td>{{ row.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">No feedback data found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

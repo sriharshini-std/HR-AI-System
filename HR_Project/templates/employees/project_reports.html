@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}My Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Daily Project Reports</h1>
+</div>
+
+<div class="card">
+    <h3>Today's Reporting Status</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in pending_projects %}
+            <tr>
+                <td>{{ project.name }}</td>
+                <td><span class="tag">Pending Report</span></td>
+                <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=project.id) }}">Report Now</a></td>
+            </tr>
+            {% endfor %}
+            {% for report in submitted_reports %}
+            <tr>
+                <td>{{ report.project.name }}</td>
+                <td><span class="tag">Reported</span></td>
+                <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=report.project.id) }}">View / Update</a></td>
+            </tr>
+            {% endfor %}
+            {% if not pending_projects and not submitted_reports %}
+            <tr><td colspan="3">No ongoing assigned projects requiring a daily report today.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Report History</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Project</th>
+                <th>Progress %</th>
+                <th>Work Summary</th>
+                <th>Blockers</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in all_reports %}
+            <tr>
+                <td>{{ report.report_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ report.project.name }}</td>
+                <td>{{ report.progress_percent }}%</td>
+                <td>{{ report.work_summary }}</td>
+                <td>{{ report.blockers or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">No project reports submitted yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

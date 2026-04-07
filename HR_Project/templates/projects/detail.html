@@ -1,0 +1,234 @@
+﻿{% extends "base.html" %}
+{% block title %}Project Detail{% endblock %}
+
+{% block content %}
+<h1>{{ project.name }}</h1>
+<div class="card">
+    <p>{{ project.description or 'No description provided.' }}</p>
+    <p><strong>Status:</strong> <span class="tag">{{ project.computed_status }}</span></p>
+    <p><strong>Start Date:</strong> {{ project.start_date.strftime('%Y-%m-%d') }}</p>
+    <p><strong>Duration:</strong> {{ project.duration_days }} days</p>
+    <p><strong>End Date:</strong> {{ project.end_date.strftime('%Y-%m-%d') }}</p>
+    <p>
+        <strong>Required Skills:</strong>
+        {% for skill in project.required_skills %}
+            <span class="tag">{{ skill.name }}</span>
+        {% else %}
+            -
+        {% endfor %}
+    </p>
+</div>
+
+{% if project.computed_status == "Ongoing" %}
+<div class="card">
+    <h3>Project Team Progress</h3>
+    <div class="project-progress-layout">
+        <div class="progress-wheel-panel">
+            <div class="progress-pie-chart" style="--progress: {{ completed_work_percentage }};">
+                <div class="progress-pie-inner">
+                    <strong>{{ completed_work_percentage }}%</strong>
+                    <span>Completed</span>
+                </div>
+            </div>
+            <div class="progress-legend">
+                <div><span class="legend-dot legend-complete"></span> Completed Work: {{ completed_work_percentage }}%</div>
+                <div><span class="legend-dot legend-remaining"></span> Remaining Work: {{ remaining_work_percentage }}%</div>
+            </div>
+        </div>
+        <div class="metric-row project-progress-metrics">
+            <div class="metric-card"><strong>Reported Progress</strong><div>{{ reported_progress_percentage }}%</div></div>
+            <div class="metric-card"><strong>Duration</strong><div>{{ project.duration_days }} days</div></div>
+            <div class="metric-card"><strong>Start Day</strong><div>{{ project.start_date.strftime('%Y-%m-%d') }}</div></div>
+            <div class="metric-card"><strong>End Day</strong><div>{{ project.end_date.strftime('%Y-%m-%d') }}</div></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if project.computed_status == "Ongoing" %}
+<div class="card">
+    <h3>Live Daily Reporting</h3>
+    <div class="metric-row">
+        <div class="metric-card"><strong>Reported Today</strong><div>{{ today_report_count }}/{{ team_size }}</div></div>
+        <div class="metric-card"><strong>Pending Reports</strong><div>{{ team_size - today_report_count }}</div></div>
+        <div class="metric-card"><strong>Today</strong><div>{{ today_date.strftime('%Y-%m-%d') }}</div></div>
+    </div>
+</div>
+{% endif %}
+
+{% if current_user.role != 'Admin' and project.computed_status == 'Ongoing' %}
+<div class="card">
+    <div class="page-header">
+        <h3>Submit Today's Project Report</h3>
+        {% if my_today_report %}
+        <span class="tag">Reported</span>
+        {% else %}
+        <span class="tag">Pending Report</span>
+        {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('projects.submit_project_report', project_id=project.id) }}" class="form-grid project-report-form">
+        <label for="progress_percent">Today's Progress %</label>
+        <input id="progress_percent" name="progress_percent" type="number" min="0" max="100" value="{{ my_today_report.progress_percent if my_today_report else '' }}" required>
+
+        <label for="work_summary">What did you work on today?</label>
+        <textarea id="work_summary" name="work_summary" rows="4" placeholder="Describe completed tasks, features, fixes, or deliverables." required>{{ my_today_report.work_summary if my_today_report else '' }}</textarea>
+
+        <label for="blockers">Blockers / Help Needed</label>
+        <textarea id="blockers" name="blockers" rows="3" placeholder="Optional blockers or dependency notes.">{{ my_today_report.blockers if my_today_report and my_today_report.blockers else '' }}</textarea>
+
+        <button class="btn" type="submit">{% if my_today_report %}Update Today's Report{% else %}Submit Today's Report{% endif %}</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="page-header">
+        <h3>Allocated Team Progress Table</h3>
+        {% if current_user.role == 'Admin' %}
+        <a class="btn" href="{{ url_for('employees.list_employees', project_id=project.id) }}">Add More Employee</a>
+        {% endif %}
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Position</th>
+                <th>Role</th>
+                <th>Skills</th>
+                <th>Today's Login</th>
+                <th>Daily Report</th>
+                <th>Today's Update</th>
+                <th>Attendance Score</th>
+                <th>Performance Score</th>
+                <th>Skill Score</th>
+                <th>Employee Progress</th>
+                {% if current_user.role == 'Admin' %}<th>Actions</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in allocated_team_rows %}
+            {% set assignment = row.assignment %}
+            <tr>
+                <td>{{ assignment.employee.name }}</td>
+                <td>{{ assignment.employee.position }}</td>
+                <td>{% if assignment.is_team_leader %}Team Leader{% else %}Member{% endif %}</td>
+                <td>{{ row.skills_text }}</td>
+                <td>{{ row.today_login }}</td>
+                <td><span class="tag">{{ row.report_status }}</span></td>
+                <td>
+                    {% if row.today_report %}
+                        {{ row.today_report.work_summary }}
+                    {% else %}
+                        No report submitted yet.
+                    {% endif %}
+                </td>
+                <td>{{ row.attendance_score }}</td>
+                <td>{{ row.performance_score }}</td>
+                <td>{{ row.skill_score }}</td>
+                <td>{{ row.employee_progress }}%</td>
+                {% if current_user.role == 'Admin' %}
+                <td>
+                    {% if not assignment.is_team_leader %}
+                    <form method="post" action="{{ url_for('projects.set_team_leader', project_id=project.id) }}" class="inline-form confirm-form" data-confirm-message="Set this employee as team leader?">
+                        <input type="hidden" name="user_id" value="{{ assignment.employee.id }}">
+                        <button class="btn" type="submit">Set Leader</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('projects.remove_project_member', project_id=project.id) }}" class="inline-form confirm-form" data-confirm-message="Remove this employee from project allocation?">
+                        <input type="hidden" name="user_id" value="{{ assignment.employee.id }}">
+                        <button class="btn btn-secondary" type="submit">Remove</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% else %}
+            <tr><td colspan="{{ 12 if current_user.role == 'Admin' else 11 }}">No one assigned yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if project.computed_status == "Upcoming" and not has_allocations %}
+<div class="card">
+    <h3>Multiple Team Suggestions</h3>
+    {% for suggestion in team_suggestions %}
+    <div class="suggestion-block">
+        {% if current_user.role == 'Admin' %}
+        <form method="post" action="{{ url_for('projects.assign_suggested_team', project_id=project.id) }}" class="confirm-form" data-confirm-message="Confirm project allocation for this suggested team?">
+            {% for member in suggestion.members %}
+            <input type="hidden" name="user_ids" value="{{ member.employee.id }}">
+            {% endfor %}
+            <input type="hidden" name="leader_id" value="{{ suggestion.members[0].employee.id }}">
+            <button class="btn" type="submit">Allocate Team {{ loop.index }}</button>
+        </form>
+        {% endif %}
+
+        <div class="metric-row">
+            <div class="metric-card"><strong>Coverage</strong><div>{{ suggestion.coverage_percentage }}%</div></div>
+            <div class="metric-card"><strong>Avg Performance</strong><div>{{ suggestion.avg_performance_score }}</div></div>
+            <div class="metric-card"><strong>Avg Skill Score</strong><div>{{ suggestion.avg_skill_score }}</div></div>
+            <div class="metric-card"><strong>Missing Skills</strong><div>{% if suggestion.team_missing_skills %}{{ suggestion.team_missing_skills | join(', ') }}{% else %}None{% endif %}</div></div>
+        </div>
+
+        <div class="name-box">
+            <strong>Team {{ loop.index }} Members (Ordered)</strong>
+            <ol>
+                {% for member in suggestion.members %}
+                <li>{{ member.employee.name }}</li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    {% else %}
+    <p>No skill-matching team suggestions available.</p>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if project.computed_status != "Ongoing" and not has_allocations %}
+<div class="card">
+    <h3>Skill Gap Analysis</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Match %</th>
+                <th>Performance Score</th>
+                <th>Skill Score</th>
+                <th>Matched Skills</th>
+                <th>Missing Skills</th>
+                {% if current_user.role == 'Admin' %}<th>Allocate</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in ranked_matches %}
+            <tr>
+                <td>{{ row.employee.name }}</td>
+                <td>{{ row.match_percentage }}%</td>
+                <td>{{ row.performance_score }}</td>
+                <td>{{ row.skill_score }}</td>
+                <td>{{ row.matched_skills | join(', ') }}</td>
+                <td>
+                    {% if row.missing_skills %}
+                        {{ row.missing_skills | join(', ') }}
+                    {% else %}
+                        Fully matched
+                    {% endif %}
+                </td>
+                {% if current_user.role == 'Admin' %}
+                <td>
+                    <form method="post" action="{{ url_for('projects.assign_employee', project_id=project.id) }}" class="confirm-form" data-confirm-message="Confirm project allocation for this employee?">
+                        <input type="hidden" name="user_id" value="{{ row.employee.id }}">
+                        <button class="btn" type="submit">Allocate</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% else %}
+            <tr><td colspan="7">No skill-matching employees available.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

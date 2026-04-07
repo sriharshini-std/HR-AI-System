@@ -1,0 +1,42 @@
+﻿{% extends "base.html" %}
+{% block title %}Create Project{% endblock %}
+
+{% block content %}
+<h1>Create Project</h1>
+<div class="card">
+    <form method="post" class="form-grid">
+        <label>Project Name</label>
+        <input name="name" required>
+
+        <label>Description</label>
+        <textarea name="description" rows="4"></textarea>
+
+        <label>Start Date</label>
+        <input type="date" name="start_date" required>
+
+        <label>Total Duration (Days)</label>
+        <input type="number" name="duration_days" min="30" value="180" required>
+
+        <label>Required Skills</label>
+        <div class="checkbox-grid">
+            {% for skill in skills %}
+            <label class="checkbox-item">
+                <input type="checkbox" name="skill_ids" value="{{ skill.id }}">
+                {{ skill.name }}
+            </label>
+            {% else %}
+            <small>No existing skills found yet. Add new project skills below.</small>
+            {% endfor %}
+        </div>
+
+        <label>Add New Skills</label>
+        <input name="new_skills" placeholder="Example: Next.js, Figma, Cybersecurity">
+        <small>Separate multiple new skills with commas. New skills will be added automatically to the system.</small>
+
+        <div>
+            <button class="btn" type="submit">Create</button>
+            <a class="btn btn-secondary" href="{{ url_for('projects.list_projects') }}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

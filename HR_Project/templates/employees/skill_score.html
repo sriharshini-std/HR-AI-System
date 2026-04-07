@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Skill Score Details{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Skill Score Details</h1>
+    <a class="btn btn-secondary" href="{{ url_for('employees.list_employees') }}">Back to Employees</a>
+</div>
+
+<div class="card">
+    <p><strong>Employee:</strong> {{ employee.name }} ({{ employee.position }})</p>
+    <p><strong>Skill Score:</strong> {{ skill_score }}%</p>
+    <p><strong>Formula:</strong> Skill Score = Sum(Employee proficiency across unique skills) / (Skill Count x 4) x 100</p>
+</div>
+
+<div class="card">
+    <h3>Updated Employee Skills</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Skill</th>
+                <th>Proficiency Level</th>
+                <th>Scale</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in updated_skills %}
+            <tr>
+                <td>{{ row.name }}</td>
+                <td>{{ row.label }}</td>
+                <td>{{ row.proficiency }}/4</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">No updated skills found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Resume Skills</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Skill</th>
+                <th>Proficiency Level</th>
+                <th>Scale</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in resume_skills_data %}
+            <tr>
+                <td>{{ row.name }}</td>
+                <td>{{ row.label }}</td>
+                <td>{{ row.proficiency }}/4</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">No resume skills found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

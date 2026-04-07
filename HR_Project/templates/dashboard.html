@@ -1,0 +1,122 @@
+﻿{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<div class="card dashboard-search-card">
+    <form class="global-search-form live-search-form dashboard-search-form" data-live-search='{{ dashboard_search_items|tojson|safe }}' data-live-search-no-submit="1">
+        <input
+            type="text"
+            class="live-search-input"
+            placeholder="Search employees or projects"
+            aria-label="Search employees or projects"
+            autocomplete="off"
+        >
+        <div class="live-search-dropdown hidden"></div>
+    </form>
+</div>
+<div class="card-grid">
+    <a class="card dashboard-link-card dashboard-stat-card" href="{{ url_for('employees.list_employees') }}">
+        <h3>Total Employees</h3>
+        <p>{{ total_employees }}</p>
+    </a>
+    <a class="card dashboard-link-card dashboard-stat-card" href="{{ url_for('projects.list_projects') }}">
+        <h3>Total Projects</h3>
+        <p>{{ total_projects }}</p>
+    </a>
+    <button id="deadlineAlertsTrigger" class="card dashboard-link-card dashboard-stat-card dashboard-modal-trigger" type="button">
+        <h3>Project Deadline Alerts</h3>
+        <p>{{ project_deadline_rows|length }}</p>
+    </button>
+</div>
+
+<div class="card">
+    <h3>Top Employees</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Position</th>
+                <th>Department</th>
+                <th>Overall Score</th>
+                <th>Attendance</th>
+                <th>Performance</th>
+                <th>Skill</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in top_employee_rows %}
+            <tr>
+                <td>{{ row.employee.id }}</td>
+                <td>
+                    <a class="btn-link" href="{{ url_for('employees.overall_scores_detail', employee_id=row.employee.id) }}">
+                        {{ row.employee.name }}
+                    </a>
+                </td>
+                <td>{{ row.employee.email }}</td>
+                <td>{{ row.employee.position }}</td>
+                <td>{{ row.employee.department or '-' }}</td>
+                <td>
+                    <a class="btn-link" href="{{ url_for('employees.overall_scores_detail', employee_id=row.employee.id) }}">
+                        <strong>{{ row.overall_score }}%</strong>
+                    </a>
+                </td>
+                <td>
+                    <a class="btn-link" href="{{ url_for('employees.attendance_detail', employee_id=row.employee.id) }}">
+                        {{ row.attendance_score }}%
+                    </a>
+                </td>
+                <td>
+                    <a class="btn-link" href="{{ url_for('employees.performance_detail', employee_id=row.employee.id) }}">
+                        {{ row.performance_score }}%
+                    </a>
+                </td>
+                <td>
+                    <a class="btn-link" href="{{ url_for('employees.skill_score_detail', employee_id=row.employee.id) }}">
+                        {{ row.skill_score }}%
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9">No employees found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="deadlineAlertsModal" class="modal hidden">
+    <div class="modal-content medium-modal deadline-alerts-modal">
+        <h3>Project Deadline Alerts</h3>
+        <p>Projects reaching their deadline in the next 3 days.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th>End Date</th>
+                    <th>Deadline Report</th>
+                    <th>Team Size</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in project_deadline_rows %}
+                <tr>
+                    <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=row.project.id) }}">{{ row.project.name }}</a></td>
+                    <td><span class="tag">{{ row.project.computed_status }}</span></td>
+                    <td>{{ row.project.end_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ row.deadline_label }}</td>
+                    <td>{{ row.team_size }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No projects are reaching deadline in the next 3 days.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="modal-actions">
+            <button id="deadlineAlertsClose" class="btn btn-secondary" type="button">Close</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,158 @@
+﻿{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+
+{% block content %}
+<div class="projects-page">
+    <div class="page-header">
+        <h1>Projects</h1>
+        {% if selected_status or query %}
+        <a class="btn btn-secondary" href="{{ url_for('projects.list_projects') }}">Clear Filter</a>
+        {% elif current_user.role == 'Admin' %}
+        <a class="btn" href="{{ url_for('projects.create_project') }}">Create Project</a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <form method="get" class="global-search-form live-search-form" data-live-search='{{ search_items|tojson|safe }}'>
+            {% if selected_status %}
+            <input type="hidden" name="status" value="{{ selected_status }}">
+            {% endif %}
+            <input
+                type="text"
+                name="q"
+                class="live-search-input"
+                value="{{ query or '' }}"
+                placeholder="Search by project name, description, or required skill"
+                aria-label="Search projects"
+                autocomplete="off"
+            >
+            <button type="submit" class="btn">
+                <i class="fa-solid fa-magnifying-glass"></i> Search
+            </button>
+            <div class="live-search-dropdown hidden"></div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Project Status Summary</h3>
+        <div class="status-summary-grid">
+            <a class="status-card {% if selected_status == 'Upcoming' %}active{% endif %}" href="{{ url_for('projects.list_projects', status='Upcoming') }}">
+                <span>Upcoming</span>
+                <strong>{{ status_counts.Upcoming }}</strong>
+            </a>
+            <a class="status-card {% if selected_status == 'Ongoing' %}active{% endif %}" href="{{ url_for('projects.list_projects', status='Ongoing') }}">
+                <span>Ongoing</span>
+                <strong>{{ status_counts.Ongoing }}</strong>
+            </a>
+            <a class="status-card {% if selected_status == 'Completed' %}active{% endif %}" href="{{ url_for('projects.list_projects', status='Completed') }}">
+                <span>Completed</span>
+                <strong>{{ status_counts.Completed }}</strong>
+            </a>
+        </div>
+    </div>
+
+{% if current_user.role == 'Admin' %}
+    <div class="card">
+        <h3>Live Project Monitoring</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th>Clocked In Today</th>
+                    <th>Reported Today</th>
+                    <th>Reporting Gap</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in live_project_rows %}
+                <tr>
+                    <td>{{ row.project.name }}</td>
+                    <td><span class="tag">{{ row.project.computed_status }}</span></td>
+                    <td>{{ row.clocked_in_count }}/{{ row.team_size }}</td>
+                    <td>{{ row.reported_count }}/{{ row.team_size }}</td>
+                    <td>{{ row.reporting_gap }}</td>
+                    <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=row.project.id) }}">Monitor</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No ongoing projects available for live monitoring.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+
+    <div class="card">
+        <div class="page-header">
+            <h3>{% if selected_status %}{{ selected_status }} Projects{% else %}All Projects{% endif %}</h3>
+            {% if selected_status and current_user.role == 'Admin' %}
+            <a class="btn" href="{{ url_for('projects.create_project') }}">Create Project</a>
+            {% endif %}
+        </div>
+        {% if selected_status %}
+        <small>Showing projects filtered by <strong>{{ selected_status }}</strong> status.</small>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Start</th>
+                    <th>Duration</th>
+                    <th>End</th>
+                    <th>Skills</th>
+                    <th>Team Members</th>
+                    <th>Created</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                <tr class="project-row" data-url="{{ url_for('projects.project_detail', project_id=project.id) }}">
+                    <td>{{ project.name }}</td>
+                    <td><span class="tag">{{ project.computed_status }}</span></td>
+                    <td>{{ project.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ project.duration_days }} days</td>
+                    <td>{{ project.end_date.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        {% if project.computed_status == 'Completed' %}
+                            -
+                        {% elif project.computed_status == 'Ongoing' %}
+                            <small>Skills Used:</small><br>
+                            {% for skill in project.required_skills %}
+                                <span class="tag">{{ skill.name }}</span>
+                            {% else %}
+                                -
+                            {% endfor %}
+                        {% else %}
+                            {% for skill in project.required_skills %}
+                                <span class="tag">{{ skill.name }}</span>
+                            {% else %}
+                                -
+                            {% endfor %}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="scroll-members">
+                            {% for assignment in project.assignments %}
+                                <span class="tag">{{ assignment.employee.name }}</span>
+                            {% else %}
+                                -
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=project.id) }}">View</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">No projects found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

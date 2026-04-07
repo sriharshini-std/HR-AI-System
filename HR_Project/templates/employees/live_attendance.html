@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Live Attendance{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Live Attendance Monitoring</h1>
+    <div>
+        <span class="tag live-attendance-date-tag">Date: {{ today.strftime('%Y-%m-%d') }}</span>
+    </div>
+</div>
+
+<div class="attendance-monitor-grid">
+    <div class="card">
+        <h3>Logged</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee ID</th>
+                    <th>Name</th>
+                    <th>Attendance Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in logged_rows %}
+                <tr>
+                    <td>{{ row.employee.id }}</td>
+                    <td>{{ row.employee.name }}</td>
+                    <td>
+                        <a class="btn-link" href="{{ url_for('employees.live_attendance_detail', employee_id=row.employee.id) }}">
+                            {{ row.attendance_status }}
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3">No employees have logged attendance today.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Not Logged</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee ID</th>
+                    <th>Name</th>
+                    <th>Attendance Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in not_logged_rows %}
+                <tr>
+                    <td>{{ row.employee.id }}</td>
+                    <td>{{ row.employee.name }}</td>
+                    <td>
+                        <a class="btn-link" href="{{ url_for('employees.live_attendance_detail', employee_id=row.employee.id) }}">
+                            {{ row.attendance_status }}
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3">All employees have logged in today.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

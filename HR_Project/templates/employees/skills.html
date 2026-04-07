@@ -1,0 +1,26 @@
+﻿{% extends "base.html" %}
+{% block title %}Skills{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Skills</h1>
+</div>
+
+<div class="card">
+    {% if current_user.role == 'Admin' %}
+    <form method="post" class="inline-form">
+        <input type="hidden" name="add_skill" value="1">
+        <input type="text" name="name" placeholder="Add skill" required>
+        <button class="btn" type="submit">Add</button>
+    </form>
+    {% endif %}
+
+    <div class="tag-wrap">
+        {% for skill in skill_list %}
+            <span class="tag">{{ skill.name }}</span>
+        {% else %}
+            <p>No skills added.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

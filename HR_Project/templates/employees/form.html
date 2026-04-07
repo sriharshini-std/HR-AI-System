@@ -1,0 +1,63 @@
+﻿{% extends "base.html" %}
+{% block title %}Employee Form{% endblock %}
+
+{% block content %}
+<h1>{{ 'Edit Employee' if employee else 'Add Employee' }}</h1>
+{% if selected_project %}
+<div class="card">
+    <strong>Project Allocation Context:</strong> {{ selected_project.name }}
+</div>
+{% endif %}
+<div class="card">
+    <form method="post" class="form-grid">
+        <label>Name</label>
+        <input name="name" value="{{ employee.name if employee else '' }}" required>
+
+        <label>Email</label>
+        <input type="email" name="email" value="{{ employee.email if employee else '' }}" required>
+
+        <label>Password {% if employee %}(optional){% endif %}</label>
+        <input type="password" name="password" {% if not employee %}required{% endif %}>
+
+        <label>Access Role</label>
+        <select name="role" required>
+            {% set selected_role = employee.role if employee else 'Employee' %}
+            <option value="Employee" {% if selected_role == 'Employee' %}selected{% endif %}>Employee</option>
+            <option value="Admin" {% if selected_role == 'Admin' %}selected{% endif %}>Admin</option>
+        </select>
+
+        <label>Position</label>
+        {% set selected_position = employee.position if employee else 'Web Developer' %}
+        <select name="position" required>
+            {% for position_name in designated_positions %}
+            <option value="{{ position_name }}" {% if selected_position == position_name %}selected{% endif %}>{{ position_name }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Department</label>
+        <input name="department" value="{{ employee.department if employee else '' }}">
+
+        <label>Skills</label>
+        <div class="checkbox-grid">
+            {% set employee_skill_ids = employee.skills | map(attribute='id') | list if employee else [] %}
+            {% for skill in skills %}
+            <label class="checkbox-item">
+                <input type="checkbox" name="skill_ids" value="{{ skill.id }}" {% if skill.id in employee_skill_ids %}checked{% endif %}>
+                {{ skill.name }}
+            </label>
+            {% else %}
+                <small>No skills available. Add from Skills page.</small>
+            {% endfor %}
+        </div>
+
+        <div>
+            <button class="btn" type="submit">Save</button>
+            {% if selected_project %}
+            <a class="btn btn-secondary" href="{{ url_for('employees.list_employees', project_id=selected_project.id) }}">Cancel</a>
+            {% else %}
+            <a class="btn btn-secondary" href="{{ url_for('employees.list_employees') }}">Cancel</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

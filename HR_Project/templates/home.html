@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}STAFFLY{% endblock %}
+
+{% block public_content %}
+<div class="home-page">
+    <section class="home-hero">
+        <div class="home-hero-copy">
+            <div class="home-brand-lockup">
+                <img src="{{ url_for('static', filename='img/staffly-logo.jpeg') }}" alt="STAFFLY logo" class="home-brand-logo">
+                <span class="home-badge">Centralized HR & Project Workspace</span>
+            </div>
+            <h1>STAFFLY</h1>
+            <p>
+                One professional workspace for employee operations, project allocation,
+                performance tracking, attendance monitoring, and AI-driven learning support.
+            </p>
+            <div class="home-hero-points">
+                <span>Role-based access</span>
+                <span>Live employee monitoring</span>
+                <span>Project and learning workflows</span>
+            </div>
+        </div>
+
+        <div class="home-access-grid">
+            <article class="home-access-card">
+                <p class="home-card-label">Admin Access</p>
+                <h2>HR Admin Portal</h2>
+                <p>Manage employees, projects, assignments, monitoring, and system-wide operations through the authorized admin account.</p>
+                <div class="home-links">
+                    <a class="btn home-btn" href="{{ url_for('auth.admin_login') }}">Admin Login</a>
+                    {% if not admin_setup_complete %}
+                    <a class="btn home-btn home-btn-secondary" href="{{ url_for('auth.admin_setup') }}">Admin Setup</a>
+                    {% endif %}
+                </div>
+            </article>
+
+            <article class="home-access-card">
+                <p class="home-card-label">Employee Access</p>
+                <h2>Employee Portal</h2>
+                <p>Review scores, access assigned projects, submit reports, manage leave, and explore AI learning.</p>
+                <div class="home-links">
+                    <a class="btn home-btn" href="{{ url_for('auth.employee_login') }}">Employee Login</a>
+                    <a class="btn home-btn home-btn-secondary" href="{{ url_for('auth.employee_register') }}">Employee Register</a>
+                </div>
+            </article>
+        </div>
+    </section>
+</div>
+{% endblock %}

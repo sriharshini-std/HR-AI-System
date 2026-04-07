@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>All Notifications</h1>
+    <a class="btn btn-secondary" href="{{ url_for('auth.dashboard') }}">Back</a>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in notifications %}
+            <tr>
+                <td>{{ item.message }}</td>
+                <td>{{ "Unread" if not item.is_read else "Read" }}</td>
+                <td>{{ item.created_at.strftime('%Y-%m-%d %I:%M %p') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">No notifications found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
