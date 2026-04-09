@@ -1,4 +1,72 @@
-﻿async function loadNotifications() {
+function getSavedTheme() {
+    return localStorage.getItem("staffly-theme") || "light";
+}
+
+function getNotificationsEnabled() {
+    const savedValue = localStorage.getItem("staffly-browser-notifications-enabled");
+    return savedValue !== "off";
+}
+
+function getSeenBrowserNotificationIds() {
+    try {
+        return JSON.parse(sessionStorage.getItem("staffly-seen-browser-notifications") || "[]");
+    } catch (error) {
+        return [];
+    }
+}
+
+function markBrowserNotificationSeen(notificationId) {
+    const currentIds = new Set(getSeenBrowserNotificationIds());
+    currentIds.add(notificationId);
+    sessionStorage.setItem("staffly-seen-browser-notifications", JSON.stringify(Array.from(currentIds)));
+}
+
+function showBrowserNotifications(items) {
+    if (!getNotificationsEnabled()) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+    const seenIds = new Set(getSeenBrowserNotificationIds());
+    items.forEach((item) => {
+        if (seenIds.has(item.id)) return;
+        const browserNote = new Notification("STAFFLY", {
+            body: item.message,
+            tag: `staffly-${item.id}`,
+        });
+        browserNote.onclick = () => {
+            window.focus();
+            window.location.href = item.url || "/projects/notifications";
+            browserNote.close();
+        };
+        markBrowserNotificationSeen(item.id);
+    });
+}
+
+function applyTheme(theme) {
+    const resolvedTheme = theme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", resolvedTheme);
+    localStorage.setItem("staffly-theme", resolvedTheme);
+
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+        button.classList.toggle("active-theme", button.dataset.themeChoice === resolvedTheme);
+    });
+    document.querySelectorAll("[data-theme-preview]").forEach((card) => {
+        card.classList.toggle("theme-preview-dark", resolvedTheme === "dark");
+        card.classList.toggle("theme-preview-light", resolvedTheme !== "dark");
+    });
+}
+
+function applyNotificationPreference(enabled) {
+    localStorage.setItem("staffly-browser-notifications-enabled", enabled ? "on" : "off");
+
+    const statusNote = document.getElementById("notificationStatusNote");
+    if (statusNote) {
+        statusNote.textContent = enabled
+            ? "Browser notifications are enabled."
+            : "Browser notifications are muted for this device.";
+    }
+}
+
+async function loadNotifications() {
     const countEl = document.getElementById("notificationCount");
     const dropdown = document.getElementById("notificationDropdown");
     if (!countEl || !dropdown) return;
@@ -7,6 +75,7 @@
         const response = await fetch("/projects/notifications/unread");
         const data = await response.json();
         countEl.textContent = data.count;
+        showBrowserNotifications(data.items || []);
 
         if (!data.items.length) {
             dropdown.innerHTML = "<div class='notification-item'>No unread notifications</div>";
@@ -16,7 +85,7 @@
         dropdown.innerHTML = data.items
             .map(
                 (item) =>
-                    `<div class='notification-item'><div>${item.message}</div><small>${item.created_at}</small></div>`
+                    `<a class='notification-item notification-link-item' href='${item.url || "/projects/notifications"}'><div>${item.message}</div><small>${item.created_at}</small></a>`
             )
             .join("");
     } catch (error) {
@@ -33,13 +102,16 @@ async function markNotificationsRead() {
 }
 
 function initNotifications() {
+    const bellLink = document.getElementById("notificationBellLink");
     const countBtn = document.getElementById("notificationCountBtn");
     const dropdown = document.getElementById("notificationDropdown");
-    if (!countBtn || !dropdown) return;
+    if (!bellLink || !countBtn || !dropdown) return;
 
+    applyNotificationPreference(getNotificationsEnabled());
     loadNotifications();
 
     countBtn.addEventListener("click", async () => {
+        if (!getNotificationsEnabled()) return;
         dropdown.classList.toggle("hidden");
         if (!dropdown.classList.contains("hidden")) {
             await loadNotifications();
@@ -54,6 +126,61 @@ function initNotifications() {
             dropdown.classList.add("hidden");
         }
     });
+}
+
+function initWorkspaceSettings() {
+    applyTheme(getSavedTheme());
+    applyNotificationPreference(getNotificationsEnabled());
+
+    const notificationToggle = document.querySelector("[data-notification-toggle]");
+    if (notificationToggle) {
+        notificationToggle.checked = getNotificationsEnabled();
+        notificationToggle.addEventListener("change", () => {
+            if (notificationToggle.checked && "Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission().then((permission) => {
+                    const allowed = permission === "granted";
+                    notificationToggle.checked = allowed;
+                    applyNotificationPreference(allowed);
+                });
+                return;
+            }
+            applyNotificationPreference(notificationToggle.checked);
+        });
+    }
+
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+        button.addEventListener("click", () => {
+            applyTheme(button.dataset.themeChoice || "light");
+        });
+    });
+}
+
+function initDeadlineAlertSelector() {
+    const picker = document.querySelector("[data-alert-picker]");
+    if (!picker) return;
+
+    const allInput = picker.querySelector("[data-alert-all]");
+    const optionInputs = Array.from(picker.querySelectorAll("[data-alert-option]"));
+    if (!allInput || !optionInputs.length) return;
+
+    function syncAllState() {
+        const allSelected = optionInputs.every((input) => input.checked);
+        allInput.checked = allSelected;
+    }
+
+    allInput.addEventListener("change", () => {
+        optionInputs.forEach((input) => {
+            input.checked = allInput.checked;
+        });
+    });
+
+    optionInputs.forEach((input) => {
+        input.addEventListener("change", () => {
+            syncAllState();
+        });
+    });
+
+    syncAllState();
 }
 
 function initConfirmModal() {
@@ -680,6 +807,8 @@ function initPasswordToggles() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    initWorkspaceSettings();
+    initDeadlineAlertSelector();
     initAdminSessionGate();
     initNotifications();
     initConfirmModal();

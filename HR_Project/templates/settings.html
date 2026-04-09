@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <div class="settings-header">
+        <span class="settings-eyebrow">Workspace Settings</span>
+        <h1>Personalize STAFFLY</h1>
+        <p>Adjust the theme, browser notifications, and email delivery settings without changing your workspace structure.</p>
+    </div>
+
+    <div class="settings-grid">
+        <section class="card settings-card settings-feature-card">
+            <div class="settings-card-head">
+                <div>
+                    <h3>Theme</h3>
+                    <p>Switch between light and dark appearance across the full workspace.</p>
+                </div>
+                <i class="fa-solid fa-palette"></i>
+            </div>
+            <button type="button" class="theme-preview-card theme-preview-light" data-theme-preview="light" aria-label="Theme preview card">
+                <div class="theme-preview-header">
+                    <div>
+                        <strong>Workspace Theme</strong>
+                        <small>Tap a mode below to update the full interface instantly.</small>
+                    </div>
+                    <span class="theme-preview-badge">Theme</span>
+                </div>
+                <div class="theme-preview-body">
+                    <div class="theme-preview-tile"></div>
+                    <div class="theme-preview-panel"></div>
+                    <div class="theme-preview-row">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            </button>
+            <div class="theme-choice-grid">
+                <button type="button" class="theme-choice-card" data-theme-choice="light">
+                    <span class="theme-choice-label">Light</span>
+                    <strong>Bright workspace</strong>
+                    <small>Blue and bluish-green surfaces with soft contrast.</small>
+                </button>
+                <button type="button" class="theme-choice-card" data-theme-choice="dark">
+                    <span class="theme-choice-label">Dark</span>
+                    <strong>Focused workspace</strong>
+                    <small>Low-glare navy surfaces with clear content hierarchy.</small>
+                </button>
+            </div>
+        </section>
+
+        <section class="card settings-card settings-feature-card">
+            <div class="settings-card-head">
+                <div>
+                    <h3>Browser Notifications</h3>
+                    <p>Control whether STAFFLY sends browser-level messages to this device.</p>
+                </div>
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <label class="settings-toggle-row">
+                <div>
+                    <strong>Message From Browser</strong>
+                    <small>When enabled, unread STAFFLY updates can appear as browser notifications on this device.</small>
+                </div>
+                <span class="settings-switch">
+                    <input type="checkbox" id="notificationToggle" data-notification-toggle>
+                    <span class="settings-slider"></span>
+                </span>
+            </label>
+            <div class="settings-status-note" id="notificationStatusNote">Browser notifications are enabled.</div>
+        </section>
+    </div>
+
+    <div class="card settings-smtp-card">
+        <div class="settings-card-head">
+            <div>
+                <h3>Project Alert Preferences</h3>
+                <p>Choose which project start and deadline alerts STAFFLY should send to your account. All alerts are enabled by default.</p>
+            </div>
+            <i class="fa-solid fa-bullhorn"></i>
+        </div>
+        <form method="post" class="form-grid settings-smtp-form">
+            <input type="hidden" name="form_type" value="alerts">
+            {% for field_name, label, description in alert_preference_fields %}
+            <label class="settings-toggle-row smtp-toggle-row">
+                <div>
+                    <strong>{{ label }}</strong>
+                    <small>{{ description }}</small>
+                </div>
+                <span class="settings-switch">
+                    <input type="checkbox" name="{{ field_name }}" {% if current_user|attr(field_name) %}checked{% endif %}>
+                    <span class="settings-slider"></span>
+                </span>
+            </label>
+            {% endfor %}
+            <div class="deadline-alert-picker" data-alert-picker>
+                <label class="deadline-alert-label">Deadline Alert Days</label>
+                <div class="deadline-alert-options">
+                    <label class="deadline-alert-option">
+                        <input
+                            type="checkbox"
+                            name="deadline_alert_days"
+                            value="all"
+                            data-alert-all
+                            {% if selected_deadline_alert_days|length == deadline_alert_options|length %}checked{% endif %}
+                        >
+                        <span class="deadline-alert-control"></span>
+                        <span class="deadline-alert-text">All</span>
+                    </label>
+                    {% for value, label in deadline_alert_options %}
+                    <label class="deadline-alert-option">
+                        <input
+                            type="checkbox"
+                            name="deadline_alert_days"
+                            value="{{ value }}"
+                            data-alert-option
+                            {% if value in selected_deadline_alert_days %}checked{% endif %}
+                        >
+                        <span class="deadline-alert-control"></span>
+                        <span class="deadline-alert-text">{{ label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <small class="field-hint">Click each alert day you want. Choosing All keeps every deadline alert active.</small>
+            <div class="inline-actions">
+                <button type="submit" class="btn">Save Alert Preferences</button>
+            </div>
+        </form>
+    </div>
+
+    {% if current_user.role == 'Admin' %}
+    <div class="card settings-smtp-card">
+        <div class="settings-card-head">
+            <div>
+                <h3>SendGrid Setup</h3>
+                <p>Configure STAFFLY email delivery with SendGrid. Leave the API key blank to keep the current saved key.</p>
+            </div>
+            <i class="fa-solid fa-envelope"></i>
+        </div>
+        <p class="settings-status-note">
+            SendGrid status:
+            <strong>{{ "Configured" if sendgrid_configured else "Not configured" }}</strong>
+        </p>
+        <form method="post" class="form-grid settings-smtp-form">
+            <input type="hidden" name="form_type" value="sendgrid">
+            <label for="sendgrid_api_key">SendGrid API Key</label>
+            <input id="sendgrid_api_key" type="password" name="api_key" placeholder="{% if sendgrid_settings.api_key_set %}API key saved. Leave blank to keep it.{% else %}Paste your SendGrid API key{% endif %}">
+
+            <label for="sendgrid_from_email">From Email</label>
+            <input id="sendgrid_from_email" type="email" name="from_email" value="{{ sendgrid_settings.from_email }}" required>
+
+            <label for="sendgrid_from_name">From Name</label>
+            <input id="sendgrid_from_name" type="text" name="from_name" value="{{ sendgrid_settings.from_name }}" placeholder="STAFFLY">
+
+            <div class="inline-actions">
+                <button type="submit" class="btn">Save SendGrid Settings</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

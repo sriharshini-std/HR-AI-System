@@ -56,6 +56,12 @@ class User(db.Model):
     department = db.Column(db.String(120), nullable=True)
     is_registered = db.Column(db.Boolean, nullable=False, default=False)
     security_code_hash = db.Column(db.String(255), nullable=True)
+    project_start_alert = db.Column(db.Boolean, nullable=False, default=True)
+    deadline_alert_30 = db.Column(db.Boolean, nullable=False, default=True)
+    deadline_alert_15 = db.Column(db.Boolean, nullable=False, default=True)
+    deadline_alert_10 = db.Column(db.Boolean, nullable=False, default=True)
+    deadline_alert_5 = db.Column(db.Boolean, nullable=False, default=True)
+    deadline_alert_1 = db.Column(db.Boolean, nullable=False, default=True)
 
     skills = db.relationship("Skill", secondary=employee_skills, back_populates="employees")
     resume_skills = db.relationship("Skill", secondary=resume_skills, back_populates="resume_employees")
@@ -255,5 +261,20 @@ class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     message = db.Column(db.String(255), nullable=False)
+    target_url = db.Column(db.String(255), nullable=True)
     is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ProjectAlertLog(db.Model):
+    __tablename__ = "project_alert_logs"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "project_id", "alert_type", "trigger_date", name="uq_project_alert_log"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False, index=True)
+    alert_type = db.Column(db.String(40), nullable=False, index=True)
+    trigger_date = db.Column(db.Date, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

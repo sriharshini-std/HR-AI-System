@@ -121,6 +121,26 @@
     </table>
 </div>
 
+<div class="card">
+    <div class="page-header">
+        <h3>Alerts</h3>
+        <a class="btn-link" href="{{ url_for('projects.notifications_page') }}">View All Notifications</a>
+    </div>
+    <div class="alerts-list">
+        {% for alert in alert_notifications %}
+        <a class="alert-item-card" href="{{ alert.target_url or url_for('projects.notifications_page') }}">
+            <div class="alert-item-icon"><i class="fa-solid fa-bell"></i></div>
+            <div class="alert-item-copy">
+                <strong>{{ alert.message }}</strong>
+                <small>{{ alert.created_at.strftime('%Y-%m-%d %I:%M %p') }}</small>
+            </div>
+        </a>
+        {% else %}
+        <div class="empty-alert-state">No active project alerts right now.</div>
+        {% endfor %}
+    </div>
+</div>
+
 {% if pending_report_projects %}
 <div id="reportReminderModal" class="modal hidden">
     <div class="modal-content medium-modal reminder-card reminder-modal-card">

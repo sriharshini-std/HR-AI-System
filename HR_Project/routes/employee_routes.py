@@ -8,7 +8,6 @@ from models import (
     AttendanceRecord,
     DailyProjectReport,
     LeaveRequest,
-    Notification,
     Project,
     ProjectAssignment,
     Skill,
@@ -17,6 +16,7 @@ from models import (
     employee_skills,
     resume_skills,
 )
+from notification_utils import create_notification_with_target
 from recommendation_engine import (
     calculate_attendance_metrics,
     calculate_attendance_score,
@@ -147,14 +147,10 @@ def live_attendance():
         row.user_id: row
         for row in AttendanceRecord.query.filter_by(record_date=today).all()
     }
-    report_counts = {
-        row[0]: row[1]
-        for row in (
-            db.session.query(DailyProjectReport.user_id, db.func.count(DailyProjectReport.id))
-            .filter(DailyProjectReport.report_date == today)
-            .group_by(DailyProjectReport.user_id)
-            .all()
-        )
+    valid_report_user_ids = {
+        report.user_id
+        for report in DailyProjectReport.query.filter_by(report_date=today).all()
+        if attendance_map.get(report.user_id) and attendance_map[report.user_id].login_time
     }
     live_attendance_rows = []
     for employee in employees:
@@ -186,7 +182,7 @@ def live_attendance():
                     if attendance_row and attendance_row.logout_time
                     else "-"
                 ),
-                "reported_projects": report_counts.get(employee.id, 0),
+                "reported_projects": 1 if employee.id in valid_report_user_ids else 0,
             }
         )
     return render_template(
@@ -210,6 +206,8 @@ def live_attendance_detail(employee_id):
         .order_by(DailyProjectReport.submitted_at.desc())
         .all()
     )
+    if not attendance_row or not attendance_row.login_time:
+        today_reports = []
 
     if any(
         leave_request.status == "Approved"
@@ -397,11 +395,11 @@ def add_employee():
                 is_team_leader=(has_leader is None),
             )
             db.session.add(assignment)
-            db.session.add(
-                Notification(
-                    user_id=employee.id,
-                    message=f"You have been assigned to project: {selected_project.name}",
-                )
+            create_notification_with_target(
+                employee.id,
+                f"You have been assigned to project: {selected_project.name}",
+                subject="STAFFLY Project Assignment",
+                target_url=url_for("projects.project_detail", project_id=selected_project.id),
             )
             db.session.commit()
             flash("New employee added and allocated to the selected project.", "success")
@@ -635,14 +633,14 @@ def leave_requests():
 
                     admin_users = User.query.filter_by(role="Admin").all()
                     for admin_user in admin_users:
-                        db.session.add(
-                            Notification(
-                                user_id=admin_user.id,
-                                message=(
-                                    f"New leave request from {user.name}: "
-                                    f"{start_date_value.strftime('%Y-%m-%d')} to {end_date_value.strftime('%Y-%m-%d')}"
-                                ),
-                            )
+                        create_notification_with_target(
+                            admin_user.id,
+                            (
+                                f"New leave request from {user.name}: "
+                                f"{start_date_value.strftime('%Y-%m-%d')} to {end_date_value.strftime('%Y-%m-%d')}"
+                            ),
+                            subject="STAFFLY Leave Request",
+                            target_url=url_for("employees.admin_leave_requests"),
                         )
 
                     db.session.commit()
@@ -728,14 +726,14 @@ def review_leave_request(leave_request_id):
     leave_request.admin_note = admin_note or None
     leave_request.reviewed_at = datetime.utcnow()
 
-    db.session.add(
-        Notification(
-            user_id=leave_request.user_id,
-            message=(
-                f"Your leave request for {leave_request.start_date.strftime('%Y-%m-%d')} to "
-                f"{leave_request.end_date.strftime('%Y-%m-%d')} was {decision.lower()}."
-            ),
-        )
+    create_notification_with_target(
+        leave_request.user_id,
+        (
+            f"Your leave request for {leave_request.start_date.strftime('%Y-%m-%d')} to "
+            f"{leave_request.end_date.strftime('%Y-%m-%d')} was {decision.lower()}."
+        ),
+        subject="STAFFLY Leave Update",
+        target_url=url_for("employees.leave_requests"),
     )
     db.session.commit()
     flash(f"Leave request {decision.lower()} successfully.", "success")

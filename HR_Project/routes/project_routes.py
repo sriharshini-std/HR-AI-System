@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from models import AttendanceRecord, Course, DailyProjectReport, Notification, Project, ProjectAssignment, Skill, User, db
+from notification_utils import create_notification_with_target
 from recommendation_engine import (
     calculate_attendance_score,
     calculate_performance_score,
@@ -96,11 +97,11 @@ def _notify_employees_about_new_skills(created_skills):
     skill_names = ", ".join(skill.name for skill in created_skills)
     employees = User.query.filter(User.role != "Admin").all()
     for employee in employees:
-        db.session.add(
-            Notification(
-                user_id=employee.id,
-                message=f"New project skill(s) added to the system: {skill_names}.",
-            )
+        create_notification_with_target(
+            employee.id,
+            f"New project skill(s) added to the system: {skill_names}.",
+            subject="STAFFLY Skills Update",
+            target_url=url_for("employees.learning_recommendations"),
         )
 
 
@@ -186,12 +187,9 @@ def list_projects():
             project for project in projects
             if (
                 lowered in project.name.lower()
-                or lowered in (project.description or "").lower()
-                or any(lowered in skill.name.lower() for skill in project.required_skills)
             )
         ]
     search_items = []
-    seen_skill_project = set()
     for project in visible_projects:
         search_items.append(
             {
@@ -201,19 +199,6 @@ def list_projects():
                 "url": url_for("projects.project_detail", project_id=project.id),
             }
         )
-        for skill in project.required_skills:
-            key = (project.id, skill.name.lower())
-            if key in seen_skill_project:
-                continue
-            seen_skill_project.add(key)
-            search_items.append(
-                {
-                    "category": "Skill",
-                    "value": skill.name,
-                    "meta": project.name,
-                    "url": url_for("projects.project_detail", project_id=project.id),
-                }
-            )
 
     if user.role == "Admin":
         status_counts = {
@@ -364,12 +349,17 @@ def project_detail(project_id):
         .order_by(DailyProjectReport.submitted_at.desc())
         .all()
     )
-    reports_by_user = {report.user_id: report for report in today_reports}
     attendance_map = _today_attendance_map()
+    valid_today_reports = [
+        report
+        for report in today_reports
+        if attendance_map.get(report.user_id) and attendance_map[report.user_id].login_time
+    ]
+    reports_by_user = {report.user_id: report for report in valid_today_reports}
     my_today_report = reports_by_user.get(user.id) if user.role != "Admin" else None
     reported_progress_percentage = (
-        round(sum(report.progress_percent for report in today_reports) / len(today_reports), 2)
-        if today_reports
+        round(sum(report.progress_percent for report in valid_today_reports) / len(valid_today_reports), 2)
+        if valid_today_reports
         else project_progress_percentage
     )
     completed_work_percentage = min(100.0, max(project_progress_percentage, reported_progress_percentage))
@@ -419,8 +409,8 @@ def project_detail(project_id):
         project_progress_percentage=project_progress_percentage,
         elapsed_days=elapsed_days,
         allocated_team_rows=allocated_team_rows,
-        today_reports=today_reports,
-        today_report_count=len(today_reports),
+        today_reports=valid_today_reports,
+        today_report_count=len(valid_today_reports),
         team_size=len(ordered_assignments),
         my_today_report=my_today_report,
         today_date=today,
@@ -447,6 +437,12 @@ def submit_project_report(project_id):
         flash("Daily reports are available only for ongoing projects.", "warning")
         return redirect(url_for("projects.project_detail", project_id=project.id))
 
+    today = date.today()
+    today_attendance = AttendanceRecord.query.filter_by(user_id=user.id, record_date=today).first()
+    if not today_attendance or not today_attendance.login_time:
+        flash("Clock in first. Daily project reports can only be submitted after login.", "warning")
+        return redirect(url_for("projects.project_detail", project_id=project.id))
+
     work_summary = request.form.get("work_summary", "").strip()
     blockers = request.form.get("blockers", "").strip()
     progress_percent = request.form.get("progress_percent", type=int)
@@ -458,7 +454,6 @@ def submit_project_report(project_id):
         flash("Progress percentage must be between 0 and 100.", "danger")
         return redirect(url_for("projects.project_detail", project_id=project.id))
 
-    today = date.today()
     existing_report = DailyProjectReport.query.filter_by(
         user_id=user.id,
         project_id=project.id,
@@ -511,11 +506,12 @@ def assign_employee(project_id):
         flash("Employee is already assigned to this project.", "warning")
         return redirect(url_for("projects.project_detail", project_id=project.id))
 
-    notification = Notification(
-        user_id=user_id,
-        message=f"You have been assigned to project: {project.name}",
+    create_notification_with_target(
+        user_id,
+        f"You have been assigned to project: {project.name}",
+        subject="STAFFLY Project Assignment",
+        target_url=url_for("projects.project_detail", project_id=project.id),
     )
-    db.session.add(notification)
     db.session.commit()
 
     flash("Project allocation confirmed for selected employee.", "success")
@@ -555,11 +551,11 @@ def assign_suggested_team(project_id):
                 leader_exists = True
 
         db.session.add(assignment)
-        db.session.add(
-            Notification(
-                user_id=parsed_id,
-                message=f"You have been assigned to project: {project.name}",
-            )
+        create_notification_with_target(
+            parsed_id,
+            f"You have been assigned to project: {project.name}",
+            subject="STAFFLY Project Assignment",
+            target_url=url_for("projects.project_detail", project_id=project.id),
         )
         created_count += 1
 
@@ -639,6 +635,7 @@ def unread_notifications():
                     "id": item.id,
                     "message": item.message,
                     "created_at": item.created_at.strftime("%Y-%m-%d %H:%M"),
+                    "url": item.target_url or url_for("projects.notifications_page"),
                 }
                 for item in unread_items
             ],

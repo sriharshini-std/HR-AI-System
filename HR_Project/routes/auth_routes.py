@@ -4,7 +4,13 @@ import re
 import secrets
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from models import DailyProjectReport, Notification, Project, ProjectAssignment, Skill, User, db
+from constants import ALERT_PREFERENCE_FIELDS, DEADLINE_ALERT_OPTIONS
+from models import DailyProjectReport, Notification, Project, ProjectAssignment, User, db
+from notification_utils import (
+    get_sendgrid_settings_display,
+    save_sendgrid_settings,
+    sendgrid_configured,
+)
 from recommendation_engine import (
     calculate_attendance_score,
     calculate_overall_employee_score,
@@ -29,15 +35,14 @@ EMPLOYEE_ALLOWED_EMAILS = {
 def _build_project_deadline_report():
     today = date.today()
     report_rows = []
+    alert_windows = {30, 15, 10, 5, 1}
 
     for project in Project.query.order_by(Project.start_date.asc()).all():
         days_to_deadline = (project.end_date - today).days
-        if days_to_deadline < 0 or days_to_deadline > 3:
+        if days_to_deadline not in alert_windows:
             continue
 
-        if days_to_deadline == 0:
-            deadline_label = "Deadline today"
-        elif days_to_deadline == 1:
+        if days_to_deadline == 1:
             deadline_label = "Deadline tomorrow"
         else:
             deadline_label = f"Deadline in {days_to_deadline} days"
@@ -101,15 +106,6 @@ def _build_dashboard_search_items():
                 "url": url_for("projects.project_detail", project_id=project.id),
             }
         )
-        for skill in project.required_skills:
-            search_items.append(
-                {
-                    "category": "Projects",
-                    "value": skill.name,
-                    "meta": project.name,
-                    "url": url_for("projects.project_detail", project_id=project.id),
-                }
-            )
 
     return search_items
 
@@ -377,6 +373,47 @@ def logout():
     return redirect(url_for("auth.home"))
 
 
+@auth_bp.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    user = current_user()
+    selected_deadline_alert_days = [
+        value for value, _label in DEADLINE_ALERT_OPTIONS
+        if getattr(user, f"deadline_alert_{value}", False)
+    ]
+    if request.method == "POST":
+        form_type = request.form.get("form_type", "").strip()
+        if form_type == "alerts":
+            user.project_start_alert = bool(request.form.get("project_start_alert"))
+
+            selected_days = request.form.getlist("deadline_alert_days")
+            if "all" in selected_days:
+                selected_days = [value for value, _label in DEADLINE_ALERT_OPTIONS]
+
+            for value, _label in DEADLINE_ALERT_OPTIONS:
+                setattr(user, f"deadline_alert_{value}", value in selected_days)
+            db.session.commit()
+            flash("Alert preferences saved.", "success")
+            return redirect(url_for("auth.settings"))
+
+        if user.role != "Admin":
+            flash("Only admins can update SendGrid settings.", "warning")
+            return redirect(url_for("auth.settings"))
+
+        save_sendgrid_settings(request.form)
+        flash("SendGrid settings saved.", "success")
+        return redirect(url_for("auth.settings"))
+
+    return render_template(
+        "settings.html",
+        sendgrid_settings=get_sendgrid_settings_display(),
+        sendgrid_configured=sendgrid_configured(),
+        alert_preference_fields=ALERT_PREFERENCE_FIELDS,
+        deadline_alert_options=DEADLINE_ALERT_OPTIONS,
+        selected_deadline_alert_days=selected_deadline_alert_days,
+    )
+
+
 @auth_bp.route("/dashboard")
 @login_required
 def dashboard():
@@ -390,10 +427,21 @@ def dashboard():
             .all()
         )
         my_projects = [assignment.project for assignment in my_assignments]
+        alert_notifications = (
+            Notification.query
+            .filter(
+                Notification.user_id == user.id,
+                Notification.message.ilike("%alert%"),
+            )
+            .order_by(Notification.created_at.desc())
+            .limit(5)
+            .all()
+        )
         return render_template(
             "employee_dashboard.html",
             my_projects=my_projects,
             pending_report_projects=_employee_pending_reports(user),
+            alert_notifications=alert_notifications,
         )
 
     total_employees = User.query.filter(User.role != "Admin").count()

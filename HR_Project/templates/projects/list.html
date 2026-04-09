@@ -12,7 +12,7 @@
         {% endif %}
     </div>
 
-    <div class="card">
+    <div class="card search-layer-card">
         <form method="get" class="global-search-form live-search-form" data-live-search='{{ search_items|tojson|safe }}'>
             {% if selected_status %}
             <input type="hidden" name="status" value="{{ selected_status }}">
@@ -22,7 +22,7 @@
                 name="q"
                 class="live-search-input"
                 value="{{ query or '' }}"
-                placeholder="Search by project name, description, or required skill"
+                placeholder="Search by project title"
                 aria-label="Search projects"
                 autocomplete="off"
             >

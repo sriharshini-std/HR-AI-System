@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: staffly
+    env: python
+    rootDir: HR_Project
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true

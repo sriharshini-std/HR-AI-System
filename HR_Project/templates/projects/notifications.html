@@ -19,7 +19,13 @@
         <tbody>
             {% for item in notifications %}
             <tr>
-                <td>{{ item.message }}</td>
+                <td>
+                    {% if item.target_url %}
+                    <a class="btn-link" href="{{ item.target_url }}">{{ item.message }}</a>
+                    {% else %}
+                    {{ item.message }}
+                    {% endif %}
+                </td>
                 <td>{{ "Unread" if not item.is_read else "Read" }}</td>
                 <td>{{ item.created_at.strftime('%Y-%m-%d %I:%M %p') }}</td>
             </tr>

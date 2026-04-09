@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}STAFFLY{% endblock %}</title>
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem("staffly-theme") || "light";
+            document.documentElement.setAttribute("data-theme", savedTheme);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     {% block head_extras %}{% endblock %}
@@ -20,19 +26,20 @@
                 </div>
             </div>
             <nav class="nav-links">
-                <a href="{{ url_for('auth.dashboard') }}" class="{% if request.endpoint == 'auth.dashboard' %}active-nav{% endif %}">Dashboard</a>
+                <a href="{{ url_for('auth.dashboard') }}" class="{% if request.endpoint == 'auth.dashboard' %}active-nav{% endif %}"><i class="fa-solid fa-house"></i>Dashboard</a>
                 {% if current_user.role == 'Admin' %}
-                <a href="{{ url_for('employees.list_employees') }}" class="{% if request.endpoint in ['employees.list_employees', 'employees.add_employee', 'employees.edit_employee', 'employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">Employees</a>
-                <a href="{{ url_for('employees.live_attendance') }}" class="{% if request.endpoint == 'employees.live_attendance' %}active-nav{% endif %}">Live Attendance</a>
-                <a href="{{ url_for('employees.admin_leave_requests') }}" class="{% if request.endpoint in ['employees.admin_leave_requests', 'employees.review_leave_request'] %}active-nav{% endif %}">Leave Requests</a>
+                <a href="{{ url_for('employees.list_employees') }}" class="{% if request.endpoint in ['employees.list_employees', 'employees.add_employee', 'employees.edit_employee', 'employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}"><i class="fa-solid fa-users"></i>Employees</a>
+                <a href="{{ url_for('employees.live_attendance') }}" class="{% if request.endpoint == 'employees.live_attendance' %}active-nav{% endif %}"><i class="fa-solid fa-user-clock"></i>Live Attendance</a>
+                <a href="{{ url_for('employees.admin_leave_requests') }}" class="{% if request.endpoint in ['employees.admin_leave_requests', 'employees.review_leave_request'] %}active-nav{% endif %}"><i class="fa-solid fa-calendar-check"></i>Leave Requests</a>
                 {% else %}
-                <a href="{{ url_for('employees.overall_scores_detail', employee_id=current_user.id) }}" class="{% if request.endpoint in ['employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">My Scores</a>
-                <a href="{{ url_for('employees.leave_requests') }}" class="{% if request.endpoint == 'employees.leave_requests' %}active-nav{% endif %}">My Leave</a>
-                <a href="{{ url_for('employees.my_project_reports') }}" class="{% if request.endpoint == 'employees.my_project_reports' %}active-nav{% endif %}">My Reports</a>
-                <a href="{{ url_for('employees.learning_recommendations') }}" class="{% if request.endpoint == 'employees.learning_recommendations' %}active-nav{% endif %}">AI Learning</a>
+                <a href="{{ url_for('employees.overall_scores_detail', employee_id=current_user.id) }}" class="{% if request.endpoint in ['employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}"><i class="fa-solid fa-chart-line"></i>My Scores</a>
+                <a href="{{ url_for('employees.leave_requests') }}" class="{% if request.endpoint == 'employees.leave_requests' %}active-nav{% endif %}"><i class="fa-solid fa-calendar-days"></i>My Leave</a>
+                <a href="{{ url_for('employees.my_project_reports') }}" class="{% if request.endpoint == 'employees.my_project_reports' %}active-nav{% endif %}"><i class="fa-solid fa-file-lines"></i>My Reports</a>
+                <a href="{{ url_for('employees.learning_recommendations') }}" class="{% if request.endpoint == 'employees.learning_recommendations' %}active-nav{% endif %}"><i class="fa-solid fa-graduation-cap"></i>AI Learning</a>
                 {% endif %}
-                <a href="{{ url_for('projects.list_projects') }}" class="{% if request.endpoint in ['projects.list_projects', 'projects.project_detail', 'projects.create_project'] %}active-nav{% endif %}">{% if current_user.role == 'Admin' %}Projects{% else %}My Projects{% endif %}</a>
-                <a href="{{ url_for('auth.logout') }}" class="confirm-link" data-confirm-message="Are you sure you want to log out?">Logout</a>
+                <a href="{{ url_for('projects.list_projects') }}" class="{% if request.endpoint in ['projects.list_projects', 'projects.project_detail', 'projects.create_project'] %}active-nav{% endif %}"><i class="fa-solid fa-diagram-project"></i>{% if current_user.role == 'Admin' %}Projects{% else %}My Projects{% endif %}</a>
+                <a href="{{ url_for('auth.settings') }}" class="{% if request.endpoint == 'auth.settings' %}active-nav{% endif %}"><i class="fa-solid fa-sliders"></i> Settings</a>
+                <a href="{{ url_for('auth.logout') }}" class="confirm-link" data-confirm-message="Are you sure you want to log out?"><i class="fa-solid fa-right-from-bracket"></i>Logout</a>
             </nav>
         </aside>
 
@@ -48,6 +55,9 @@
                     {% endif %}
                 </div>
                 <div class="topbar-actions">
+                <a class="topbar-icon-btn" href="{{ url_for('auth.settings') }}" title="Open settings" aria-label="Open settings">
+                    <i class="fa-solid fa-sliders"></i>
+                </a>
                 <div class="notification-wrapper">
                     <a id="notificationBellLink" class="bell-btn bell-link" href="{{ url_for('projects.notifications_page') }}" title="Open all notifications" aria-label="Open all notifications">🔔</a>
                     <button id="notificationCountBtn" class="notification-count-btn notification-badge-btn" type="button" title="Show unread notifications" aria-label="Show unread notifications">
@@ -59,19 +69,20 @@
             </header>
 
             <nav id="mobileMenuPanel" class="mobile-menu-panel hidden">
-                <a href="{{ url_for('auth.dashboard') }}" class="{% if request.endpoint == 'auth.dashboard' %}active-nav{% endif %}">Dashboard</a>
+                <a href="{{ url_for('auth.dashboard') }}" class="{% if request.endpoint == 'auth.dashboard' %}active-nav{% endif %}"><i class="fa-solid fa-house"></i>Dashboard</a>
                 {% if current_user.role == 'Admin' %}
-                <a href="{{ url_for('employees.list_employees') }}" class="{% if request.endpoint in ['employees.list_employees', 'employees.add_employee', 'employees.edit_employee', 'employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">Employees</a>
-                <a href="{{ url_for('employees.live_attendance') }}" class="{% if request.endpoint == 'employees.live_attendance' %}active-nav{% endif %}">Live Attendance</a>
-                <a href="{{ url_for('employees.admin_leave_requests') }}" class="{% if request.endpoint in ['employees.admin_leave_requests', 'employees.review_leave_request'] %}active-nav{% endif %}">Leave Requests</a>
+                <a href="{{ url_for('employees.list_employees') }}" class="{% if request.endpoint in ['employees.list_employees', 'employees.add_employee', 'employees.edit_employee', 'employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}"><i class="fa-solid fa-users"></i>Employees</a>
+                <a href="{{ url_for('employees.live_attendance') }}" class="{% if request.endpoint == 'employees.live_attendance' %}active-nav{% endif %}"><i class="fa-solid fa-user-clock"></i>Live Attendance</a>
+                <a href="{{ url_for('employees.admin_leave_requests') }}" class="{% if request.endpoint in ['employees.admin_leave_requests', 'employees.review_leave_request'] %}active-nav{% endif %}"><i class="fa-solid fa-calendar-check"></i>Leave Requests</a>
                 {% else %}
-                <a href="{{ url_for('employees.overall_scores_detail', employee_id=current_user.id) }}" class="{% if request.endpoint in ['employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}">My Scores</a>
-                <a href="{{ url_for('employees.leave_requests') }}" class="{% if request.endpoint == 'employees.leave_requests' %}active-nav{% endif %}">My Leave</a>
-                <a href="{{ url_for('employees.my_project_reports') }}" class="{% if request.endpoint == 'employees.my_project_reports' %}active-nav{% endif %}">My Reports</a>
-                <a href="{{ url_for('employees.learning_recommendations') }}" class="{% if request.endpoint == 'employees.learning_recommendations' %}active-nav{% endif %}">AI Learning</a>
+                <a href="{{ url_for('employees.overall_scores_detail', employee_id=current_user.id) }}" class="{% if request.endpoint in ['employees.overall_scores_detail', 'employees.attendance_detail', 'employees.performance_detail', 'employees.skill_score_detail'] %}active-nav{% endif %}"><i class="fa-solid fa-chart-line"></i>My Scores</a>
+                <a href="{{ url_for('employees.leave_requests') }}" class="{% if request.endpoint == 'employees.leave_requests' %}active-nav{% endif %}"><i class="fa-solid fa-calendar-days"></i>My Leave</a>
+                <a href="{{ url_for('employees.my_project_reports') }}" class="{% if request.endpoint == 'employees.my_project_reports' %}active-nav{% endif %}"><i class="fa-solid fa-file-lines"></i>My Reports</a>
+                <a href="{{ url_for('employees.learning_recommendations') }}" class="{% if request.endpoint == 'employees.learning_recommendations' %}active-nav{% endif %}"><i class="fa-solid fa-graduation-cap"></i>AI Learning</a>
                 {% endif %}
-                <a href="{{ url_for('projects.list_projects') }}" class="{% if request.endpoint in ['projects.list_projects', 'projects.project_detail', 'projects.create_project'] %}active-nav{% endif %}">{% if current_user.role == 'Admin' %}Projects{% else %}My Projects{% endif %}</a>
-                <a href="{{ url_for('auth.logout') }}" class="confirm-link" data-confirm-message="Are you sure you want to log out?">Logout</a>
+                <a href="{{ url_for('projects.list_projects') }}" class="{% if request.endpoint in ['projects.list_projects', 'projects.project_detail', 'projects.create_project'] %}active-nav{% endif %}"><i class="fa-solid fa-diagram-project"></i>{% if current_user.role == 'Admin' %}Projects{% else %}My Projects{% endif %}</a>
+                <a href="{{ url_for('auth.settings') }}" class="{% if request.endpoint == 'auth.settings' %}active-nav{% endif %}"><i class="fa-solid fa-sliders"></i> Settings</a>
+                <a href="{{ url_for('auth.logout') }}" class="confirm-link" data-confirm-message="Are you sure you want to log out?"><i class="fa-solid fa-right-from-bracket"></i>Logout</a>
             </nav>
 
             {% with messages = get_flashed_messages(with_categories=true) %}

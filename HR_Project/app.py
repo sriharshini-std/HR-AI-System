@@ -1,3 +1,4 @@
+import os
 import random
 import secrets
 from datetime import date, datetime, time, timedelta
@@ -8,16 +9,17 @@ from faker import Faker
 from flask import Flask, redirect, url_for
 from flask.cli import with_appcontext
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
-from constants import DESIGNATED_POSITIONS
+from constants import ALERT_PREFERENCE_FIELDS, DESIGNATED_POSITIONS
 from models import (
     AttendanceRecord,
     Course,
     DailyProjectReport,
-    Notification,
+    LeaveRequest,
     PastProjectPerformance,
     Project,
+    ProjectAlertLog,
     ProjectAssignment,
     ProjectFeedback,
     Skill,
@@ -27,6 +29,7 @@ from models import (
     project_skills,
     resume_skills,
 )
+from notification_utils import create_notification_with_target
 from routes.auth_routes import ADMIN_EMAILS, PRIMARY_ADMIN_EMAIL, SECONDARY_ADMIN_EMAIL, auth_bp, current_user
 from routes.employee_routes import employee_bp
 from routes.project_routes import project_bp
@@ -35,6 +38,8 @@ BASE_DIR = Path(__file__).resolve().parent
 INSTANCE_DIR = BASE_DIR / "instance"
 DB_PATH = INSTANCE_DIR / "hr_project.db"
 ADMIN_EMAIL = PRIMARY_ADMIN_EMAIL
+LAST_DAILY_AUTOMATION_RUN = None
+DEADLINE_ALERT_DAYS = [30, 15, 10, 5, 1]
 COURSE_PLATFORM_URLS = {
     "Coursera": "https://www.coursera.org/browse",
     "Udemy": "https://www.udemy.com/courses/search/?q={query}",
@@ -52,8 +57,14 @@ def create_app():
     app = Flask(__name__)
     INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
 
-    app.config["SECRET_KEY"] = "change-me-in-production"
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH.as_posix()}"
+    configured_database_uri = os.environ.get("DATABASE_URL", "").strip()
+    if configured_database_uri.startswith("postgres://"):
+        configured_database_uri = configured_database_uri.replace("postgres://", "postgresql://", 1)
+    if not configured_database_uri:
+        configured_database_uri = f"sqlite:///{DB_PATH.as_posix()}"
+
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-me-in-production")
+    app.config["SQLALCHEMY_DATABASE_URI"] = configured_database_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     db.init_app(app)
@@ -68,14 +79,24 @@ def create_app():
             return redirect(url_for("auth.dashboard"))
         return redirect(url_for("auth.home"))
 
+    @app.before_request
+    def refresh_daily_workspace_state():
+        run_daily_automation()
+
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+        except OperationalError as exc:
+            if "project_alert_logs already exists" not in str(exc):
+                raise
         ensure_project_status_column()
         ensure_project_timeline_columns()
         ensure_assignment_leader_column()
         ensure_user_position_column()
         ensure_user_registration_column()
         ensure_user_security_code_column()
+        ensure_user_alert_columns()
+        ensure_notification_target_column()
         ensure_attendance_log_columns()
         ensure_skill_proficiency_columns()
         ensure_employee_skill_proficiency_band()
@@ -87,7 +108,8 @@ def create_app():
         ensure_priority_employee_project_coverage()
         seed_course_catalog()
         normalize_course_catalog_links()
-        generate_ongoing_project_reports()
+        generate_ongoing_project_reports(through_date=date.today() - timedelta(days=1))
+        run_daily_automation(force=True)
 
     register_cli_commands(app)
 
@@ -321,6 +343,29 @@ def ensure_user_security_code_column():
         db.session.commit()
 
 
+def ensure_user_alert_columns():
+    columns = db.session.execute(text("PRAGMA table_info(users)")).fetchall()
+    column_names = {col[1] for col in columns}
+    for field_name, _label, _description in ALERT_PREFERENCE_FIELDS:
+        if field_name not in column_names:
+            db.session.execute(
+                text(f"ALTER TABLE users ADD COLUMN {field_name} BOOLEAN NOT NULL DEFAULT 1")
+            )
+    db.session.commit()
+
+
+def ensure_notification_target_column():
+    columns = db.session.execute(text("PRAGMA table_info(notifications)")).fetchall()
+    if not columns:
+        return
+    column_names = {col[1] for col in columns}
+    if "target_url" not in column_names:
+        db.session.execute(
+            text("ALTER TABLE notifications ADD COLUMN target_url VARCHAR(255)")
+        )
+        db.session.commit()
+
+
 def ensure_attendance_log_columns():
     columns = db.session.execute(text("PRAGMA table_info(attendance_records)")).fetchall()
     if not columns:
@@ -423,6 +468,226 @@ def _course_url_for_platform(platform_name, skill_name):
     return template.format(query=query_value)
 
 
+def _project_status_on(project, target_day):
+    if target_day < project.start_date:
+        return "Upcoming"
+    if target_day > project.end_date:
+        return "Completed"
+    return "Ongoing"
+
+
+def _user_alert_enabled(user, alert_type):
+    if alert_type == "project_start":
+        return bool(user.project_start_alert)
+    if alert_type.startswith("deadline_"):
+        days = alert_type.split("_", 1)[1]
+        return bool(getattr(user, f"deadline_alert_{days}", False))
+    return True
+
+
+def _yesterday_leave_approved(employee_id, target_day):
+    return LeaveRequest.query.filter(
+        LeaveRequest.user_id == employee_id,
+        LeaveRequest.status == "Approved",
+        LeaveRequest.start_date <= target_day,
+        LeaveRequest.end_date >= target_day,
+    ).first() is not None
+
+
+def _fake_attendance_times(target_day):
+    login_hour = random.randint(8, 9)
+    login_minute = random.randint(0, 45)
+    login_dt = datetime.combine(target_day, time(hour=login_hour, minute=login_minute))
+
+    refreshment_break = random.randint(10, 30)
+    meal_break = random.randint(30, 60)
+    meeting_break = random.randint(30, 60) if target_day.weekday() == 2 and random.random() < 0.65 else 0
+    net_work_hours = round(random.uniform(8.0, 10.0), 2)
+
+    total_break_minutes = refreshment_break + meal_break + meeting_break
+    logout_dt = login_dt + timedelta(hours=net_work_hours, minutes=total_break_minutes)
+
+    return {
+        "login_time": login_dt,
+        "logout_time": logout_dt,
+        "duration_hours": net_work_hours,
+        "coffee_break_minutes": refreshment_break,
+        "food_break_minutes": meal_break,
+        "meeting_break_minutes": meeting_break,
+    }
+
+
+def ensure_previous_day_activity(target_day=None):
+    target_day = target_day or (date.today() - timedelta(days=1))
+    if target_day.weekday() >= 5:
+        return
+
+    employees = User.query.filter(User.role != "Admin").all()
+    for employee in employees:
+        if _yesterday_leave_approved(employee.id, target_day):
+            continue
+
+        record = AttendanceRecord.query.filter_by(user_id=employee.id, record_date=target_day).first()
+        if not record:
+            record = AttendanceRecord(user_id=employee.id, record_date=target_day)
+            db.session.add(record)
+
+        if not record.login_time:
+            fake_attendance = _fake_attendance_times(target_day)
+            record.login_time = fake_attendance["login_time"]
+            record.logout_time = fake_attendance["logout_time"]
+            record.duration_hours = fake_attendance["duration_hours"]
+            record.coffee_break_minutes = fake_attendance["coffee_break_minutes"]
+            record.food_break_minutes = fake_attendance["food_break_minutes"]
+            record.meeting_break_minutes = fake_attendance["meeting_break_minutes"]
+
+        active_assignments = [
+            assignment
+            for assignment in employee.assignments
+            if _project_status_on(assignment.project, target_day) == "Ongoing"
+        ]
+        for assignment in active_assignments:
+            existing_report = DailyProjectReport.query.filter_by(
+                user_id=employee.id,
+                project_id=assignment.project_id,
+                report_date=target_day,
+            ).first()
+            if existing_report:
+                continue
+
+            project = assignment.project
+            elapsed_days = max(1, (target_day - project.start_date).days + 1)
+            progress_ratio = min(1.0, max(0.05, elapsed_days / max(1, project.duration_days)))
+            progress_percent = max(5, min(98, int(round(progress_ratio * 100 + random.randint(-6, 6)))))
+            db.session.add(
+                DailyProjectReport(
+                    user_id=employee.id,
+                    project_id=project.id,
+                    report_date=target_day,
+                    work_summary=f"Completed assigned work for {project.name} and updated the project progress for the day.",
+                    blockers=random.choice([
+                        None,
+                        "Awaiting input from another team member.",
+                        "Minor dependency review in progress.",
+                        "No blockers for the day.",
+                    ]),
+                    progress_percent=progress_percent,
+                    submitted_at=datetime.combine(target_day, time(hour=18, minute=random.randint(5, 40))),
+                )
+            )
+
+    db.session.commit()
+
+
+def purge_invalid_reports_without_login():
+    invalid_reports = []
+    for report in DailyProjectReport.query.all():
+        attendance_record = AttendanceRecord.query.filter_by(
+            user_id=report.user_id,
+            record_date=report.report_date,
+        ).first()
+        if not attendance_record or not attendance_record.login_time:
+            invalid_reports.append(report)
+
+    if not invalid_reports:
+        return 0
+
+    for report in invalid_reports:
+        db.session.delete(report)
+    db.session.commit()
+    return len(invalid_reports)
+
+
+def dispatch_project_alerts(target_day=None):
+    target_day = target_day or date.today()
+    admin_users = User.query.filter_by(role="Admin").all()
+
+    for project in Project.query.all():
+        recipients = {assignment.user_id for assignment in project.assignments}
+
+        if project.start_date == target_day:
+            for admin in admin_users:
+                recipients.add(admin.id)
+            for user_id in recipients:
+                user = User.query.get(user_id)
+                if not user or not _user_alert_enabled(user, "project_start"):
+                    continue
+                exists = ProjectAlertLog.query.filter_by(
+                    user_id=user.id,
+                    project_id=project.id,
+                    alert_type="project_start",
+                    trigger_date=target_day,
+                ).first()
+                if exists:
+                    continue
+                create_notification_with_target(
+                    user.id,
+                    f"Project start alert: {project.name} starts today.",
+                    subject="STAFFLY Project Start Alert",
+                    target_url=f"/projects/{project.id}",
+                )
+                db.session.add(
+                    ProjectAlertLog(
+                        user_id=user.id,
+                        project_id=project.id,
+                        alert_type="project_start",
+                        trigger_date=target_day,
+                    )
+                )
+
+        days_to_deadline = (project.end_date - target_day).days
+        if days_to_deadline in DEADLINE_ALERT_DAYS:
+            alert_type = f"deadline_{days_to_deadline}"
+            for admin in admin_users:
+                recipients.add(admin.id)
+            for user_id in recipients:
+                user = User.query.get(user_id)
+                if not user or not _user_alert_enabled(user, alert_type):
+                    continue
+                exists = ProjectAlertLog.query.filter_by(
+                    user_id=user.id,
+                    project_id=project.id,
+                    alert_type=alert_type,
+                    trigger_date=target_day,
+                ).first()
+                if exists:
+                    continue
+                day_label = "1 day" if days_to_deadline == 1 else f"{days_to_deadline} days"
+                create_notification_with_target(
+                    user.id,
+                    f"Project deadline alert: {project.name} is due in {day_label}.",
+                    subject="STAFFLY Project Deadline Alert",
+                    target_url=f"/projects/{project.id}",
+                )
+                db.session.add(
+                    ProjectAlertLog(
+                        user_id=user.id,
+                        project_id=project.id,
+                        alert_type=alert_type,
+                        trigger_date=target_day,
+                    )
+                )
+
+    db.session.commit()
+
+
+def run_daily_automation(force=False):
+    global LAST_DAILY_AUTOMATION_RUN
+    today = date.today()
+    if not force and LAST_DAILY_AUTOMATION_RUN == today:
+        return
+
+    sync_project_status_from_timeline()
+    ensure_previous_day_activity(today - timedelta(days=1))
+    purge_invalid_reports_without_login()
+    generate_ongoing_project_reports(
+        Project.query.filter_by(status="Ongoing").all(),
+        through_date=today - timedelta(days=1),
+    )
+    dispatch_project_alerts(today)
+    LAST_DAILY_AUTOMATION_RUN = today
+
+
 def normalize_course_catalog_links():
     changed = False
     for course in Course.query.all():
@@ -441,11 +706,54 @@ def generate_attendance_history(employee_population):
     AttendanceRecord.query.delete()
     db.session.commit()
 
-
-def generate_ongoing_project_reports(projects=None):
-    """Backfill one daily report per assigned employee per working day for ongoing projects."""
-    projects = projects or Project.query.filter_by(status="Ongoing").all()
     today = date.today()
+    for employee in employee_population:
+        meeting_break_used_by_week = {}
+        for days_back in range(30, 0, -1):
+            target_day = today - timedelta(days=days_back)
+            if target_day.weekday() >= 5 or _yesterday_leave_approved(employee.id, target_day):
+                continue
+
+            login_hour = random.randint(8, 9)
+            login_minute = random.randint(0, 45)
+            login_dt = datetime.combine(target_day, time(hour=login_hour, minute=login_minute))
+
+            refreshment_break = random.randint(10, 30)
+            meal_break = random.randint(30, 60)
+
+            iso_year, iso_week, _iso_day = target_day.isocalendar()
+            week_key = (iso_year, iso_week)
+            meeting_break = 0
+            if not meeting_break_used_by_week.get(week_key) and random.random() < 0.45:
+                meeting_break = random.randint(30, 60)
+                meeting_break_used_by_week[week_key] = True
+
+            net_work_hours = round(random.uniform(8.0, 10.0), 2)
+            logout_dt = login_dt + timedelta(
+                hours=net_work_hours,
+                minutes=refreshment_break + meal_break + meeting_break,
+            )
+
+            db.session.add(
+                AttendanceRecord(
+                    user_id=employee.id,
+                    record_date=target_day,
+                    login_time=login_dt,
+                    logout_time=logout_dt,
+                    duration_hours=net_work_hours,
+                    coffee_break_minutes=refreshment_break,
+                    food_break_minutes=meal_break,
+                    meeting_break_minutes=meeting_break,
+                )
+            )
+
+    db.session.commit()
+
+
+def generate_ongoing_project_reports(projects=None, through_date=None):
+    """Backfill one daily report per assigned employee per working day up to the selected date."""
+    projects = projects or Project.query.filter_by(status="Ongoing").all()
+    through_date = through_date or (date.today() - timedelta(days=1))
     summary_templates = [
         "Worked on {project} implementation tasks and resolved active backlog items.",
         "Reviewed assigned deliverables for {project} and completed planned execution work.",
@@ -461,15 +769,16 @@ def generate_ongoing_project_reports(projects=None):
 
     created_count = 0
     for project in projects:
-        if project.computed_status != "Ongoing":
+        if _project_status_on(project, through_date) != "Ongoing":
             continue
 
         project_start = project.start_date
-        elapsed_days = max(1, (today - project_start).days + 1)
+        if project_start > through_date:
+            continue
         for assignment in project.assignments:
             employee_id = assignment.user_id
             current_day = project_start
-            while current_day <= today:
+            while current_day <= through_date:
                 if current_day.weekday() >= 5:
                     current_day += timedelta(days=1)
                     continue
@@ -762,16 +1071,19 @@ def register_cli_commands(app):
                 )
                 db.session.add(assignment)
                 leader_set = True
-                db.session.add(
-                    Notification(
-                        user_id=member.id,
-                        message=f"You have been assigned to project: {project.name}",
-                    )
+                create_notification_with_target(
+                    member.id,
+                    f"You have been assigned to project: {project.name}",
+                    subject="STAFFLY Project Assignment",
+                    target_url=f"/projects/{project.id}",
                 )
                 assignment_count += 1
 
         db.session.commit()
-        generate_ongoing_project_reports(Project.query.filter_by(status="Ongoing").all())
+        generate_ongoing_project_reports(
+            Project.query.filter_by(status="Ongoing").all(),
+            through_date=date.today() - timedelta(days=1),
+        )
         click.echo(
             f"Seed complete: employees={len(created_users)}, projects={len(created_projects)}, "
             f"assignments={assignment_count}, skills={len(skills)}"

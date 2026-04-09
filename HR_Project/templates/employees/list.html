@@ -18,7 +18,7 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card search-layer-card">
     <form method="get" class="global-search-form live-search-form" data-live-search='{{ search_items|tojson|safe }}'>
         {% if selected_project %}
         <input type="hidden" name="project_id" value="{{ selected_project.id }}">

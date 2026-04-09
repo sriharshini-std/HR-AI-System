@@ -22,20 +22,6 @@
             No project-driven skill requirements found.
         {% endfor %}
     </p>
-    <p><strong>Target Skills:</strong>
-        {% for skill_name in recommendations.target_skill_names %}
-            <span class="tag">{{ skill_name }}</span>
-        {% else %}
-            No target skills available right now.
-        {% endfor %}
-    </p>
-    <p><strong>Missing Skills:</strong>
-        {% for skill_name in recommendations.missing_skill_names %}
-            <span class="tag">{{ skill_name }}</span>
-        {% else %}
-            No missing skills detected. Showing upskilling recommendations instead.
-        {% endfor %}
-    </p>
 </div>
 
 <div class="card">
@@ -71,7 +57,7 @@
             <div class="tag-wrap skill-selected-tags" id="selectedSkillTags"></div>
             <div id="selectedSkillInputs"></div>
         </div>
-        <small class="field-hint">If you do not select skills, AI Learning uses your missing or project-required skills automatically.</small>
+        <small class="field-hint">If you do not select skills, AI Learning uses your project-related skills automatically.</small>
 
         <label for="platform">Platform</label>
         <select id="platform" name="platform">
