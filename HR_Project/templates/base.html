@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}STAFFLY{% endblock %}</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='img/staffly-logo.jpeg') }}">
     <script>
         (function () {
             const savedTheme = localStorage.getItem("staffly-theme") || "light";
@@ -46,6 +47,13 @@
         <main class="main-content">
             <header class="topbar">
                 <button id="mobileMenuToggle" class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="mobileMenuPanel" aria-label="Open menu"><i class="fa-solid fa-bars" style="color: rgb(0, 0, 0);"></i></button>
+                <div class="topbar-brand">
+                    <img src="{{ url_for('static', filename='img/staffly-logo.jpeg') }}" alt="STAFFLY logo" class="topbar-brand-logo">
+                    <div class="topbar-brand-copy">
+                        <strong>STAFFLY</strong>
+                        <small>HR System</small>
+                    </div>
+                </div>
                 <div class="topbar-user">
                     <strong>{{ current_user.name }}</strong>
                     {% if current_user.role == 'Admin' %}
@@ -53,10 +61,6 @@
                     {% else %}
                     <small>{{ current_user.position }} | {{ current_user.role }}</small>
                     {% endif %}
-                </div>
-                <div class="topbar-search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" placeholder="Search workspace" aria-label="Search workspace">
                 </div>
                 <div class="topbar-actions">
                     <a class="topbar-icon-btn" href="{{ url_for('auth.settings') }}" title="Open settings" aria-label="Open settings">

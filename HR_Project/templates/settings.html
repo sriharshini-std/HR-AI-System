@@ -6,7 +6,7 @@
     <div class="settings-header">
         <span class="settings-eyebrow">Workspace Settings</span>
         <h1>Personalize STAFFLY</h1>
-        <p>Adjust the theme, browser notifications, and email delivery settings without changing your workspace structure.</p>
+        <p>Adjust the theme, browser notifications, and project alert preferences without changing your workspace structure.</p>
     </div>
 
     <div class="settings-grid">
@@ -127,36 +127,5 @@
             </div>
         </form>
     </div>
-
-    {% if current_user.role == 'Admin' %}
-    <div class="card settings-smtp-card">
-        <div class="settings-card-head">
-            <div>
-                <h3>SendGrid Setup</h3>
-                <p>Configure STAFFLY email delivery with SendGrid. Leave the API key blank to keep the current saved key.</p>
-            </div>
-            <i class="fa-solid fa-envelope"></i>
-        </div>
-        <p class="settings-status-note">
-            SendGrid status:
-            <strong>{{ "Configured" if sendgrid_configured else "Not configured" }}</strong>
-        </p>
-        <form method="post" class="form-grid settings-smtp-form">
-            <input type="hidden" name="form_type" value="sendgrid">
-            <label for="sendgrid_api_key">SendGrid API Key</label>
-            <input id="sendgrid_api_key" type="password" name="api_key" placeholder="{% if sendgrid_settings.api_key_set %}API key saved. Leave blank to keep it.{% else %}Paste your SendGrid API key{% endif %}">
-
-            <label for="sendgrid_from_email">From Email</label>
-            <input id="sendgrid_from_email" type="email" name="from_email" value="{{ sendgrid_settings.from_email }}" required>
-
-            <label for="sendgrid_from_name">From Name</label>
-            <input id="sendgrid_from_name" type="text" name="from_name" value="{{ sendgrid_settings.from_name }}" placeholder="STAFFLY">
-
-            <div class="inline-actions">
-                <button type="submit" class="btn">Save SendGrid Settings</button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}

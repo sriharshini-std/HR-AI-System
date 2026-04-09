@@ -34,15 +34,6 @@
             <strong>{{ total_projects }}</strong>
             <small>All tracked delivery pipelines</small>
         </a>
-        <div class="dashboard-stat-tile">
-            <span class="dashboard-stat-label">Avg Performance</span>
-            <strong>
-                {% if top_employee_rows %}
-                {{ ((top_employee_rows | map(attribute='performance_score') | sum) / (top_employee_rows | length)) | round(0) | int }}
-                {% else %}0{% endif %}
-            </strong>
-            <small>Top team performance snapshot</small>
-        </div>
         <button id="deadlineAlertsTrigger" class="dashboard-stat-tile dashboard-stat-tile-button" type="button">
             <span class="dashboard-stat-label">Deadline Alerts</span>
             <strong>{{ project_deadline_rows|length }}</strong>
@@ -57,7 +48,6 @@
                     <h3>Performance Overview</h3>
                     <p>High-level ranking of the strongest employee profiles in the current workspace.</p>
                 </div>
-                <span class="tag soft-tag">Skill Depth</span>
             </div>
             <div class="dashboard-chart-bars">
                 {% for row in top_employee_rows[:5] %}
@@ -106,10 +96,10 @@
                     <span class="spotlight-score">{{ spotlight.overall_score }}</span>
                 </div>
                 <div class="spotlight-tabs">
-                    <span class="active">Overview</span>
-                    <span>Skills</span>
-                    <span>Projects</span>
-                    <span>History</span>
+                    <a class="active" href="{{ url_for('employees.overall_scores_detail', employee_id=spotlight.employee.id) }}">Overview</a>
+                    <a href="{{ url_for('employees.skill_score_detail', employee_id=spotlight.employee.id) }}">Skills</a>
+                    <a href="{{ url_for('employees.performance_detail', employee_id=spotlight.employee.id) }}">Performance</a>
+                    <a href="{{ url_for('employees.attendance_detail', employee_id=spotlight.employee.id) }}">History</a>
                 </div>
                 <div class="spotlight-metric-list">
                     <div class="spotlight-metric-item">

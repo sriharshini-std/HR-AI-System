@@ -6,11 +6,6 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 
 from constants import ALERT_PREFERENCE_FIELDS, DEADLINE_ALERT_OPTIONS
 from models import AttendanceRecord, DailyProjectReport, Notification, Project, ProjectAssignment, User, db
-from notification_utils import (
-    get_sendgrid_settings_display,
-    save_sendgrid_settings,
-    sendgrid_configured,
-)
 from recommendation_engine import (
     calculate_attendance_score,
     calculate_overall_employee_score,
@@ -428,18 +423,8 @@ def settings():
             flash("Alert preferences saved.", "success")
             return redirect(url_for("auth.settings"))
 
-        if user.role != "Admin":
-            flash("Only admins can update SendGrid settings.", "warning")
-            return redirect(url_for("auth.settings"))
-
-        save_sendgrid_settings(request.form)
-        flash("SendGrid settings saved.", "success")
-        return redirect(url_for("auth.settings"))
-
     return render_template(
         "settings.html",
-        sendgrid_settings=get_sendgrid_settings_display(),
-        sendgrid_configured=sendgrid_configured(),
         alert_preference_fields=ALERT_PREFERENCE_FIELDS,
         deadline_alert_options=DEADLINE_ALERT_OPTIONS,
         selected_deadline_alert_days=selected_deadline_alert_days,

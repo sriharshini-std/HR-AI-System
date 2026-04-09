@@ -195,7 +195,6 @@
 
         <div class="metric-row">
             <div class="metric-card"><strong>Coverage</strong><div>{{ suggestion.coverage_percentage }}%</div></div>
-            <div class="metric-card"><strong>Avg Performance</strong><div>{{ suggestion.avg_performance_score }}</div></div>
             <div class="metric-card"><strong>Avg Skill Score</strong><div>{{ suggestion.avg_skill_score }}</div></div>
             <div class="metric-card"><strong>Missing Skills</strong><div>{% if suggestion.team_missing_skills %}{{ suggestion.team_missing_skills | join(', ') }}{% else %}None{% endif %}</div></div>
         </div>

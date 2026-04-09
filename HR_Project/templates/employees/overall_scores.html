@@ -2,6 +2,13 @@
 {% block title %}Overall Scores{% endblock %}
 
 {% block content %}
+{% set total_score_value = skill_score + attendance_score + performance_score %}
+{% if total_score_value == 0 %}
+    {% set total_score_value = 1 %}
+{% endif %}
+{% set skill_slice = ((skill_score / total_score_value) * 100) | round(2) %}
+{% set attendance_slice = ((attendance_score / total_score_value) * 100) | round(2) %}
+{% set performance_slice = (100 - skill_slice - attendance_slice) | round(2) %}
 <div class="profile-page">
     <section class="card profile-hero-card">
         <div class="profile-hero-main">
@@ -42,37 +49,45 @@
         <div class="card score-donut-panel">
             <div class="card-head-inline">
                 <div>
-                    <h3>Score Snapshot</h3>
-                    <p>A quick visual of skill, attendance, and performance score percentages.</p>
+                    <h3>Combined Score Pie Chart</h3>
+                    <p>A single pie chart showing how skill, attendance, and performance scores contribute to the full score mix.</p>
                 </div>
             </div>
-            <div class="score-donut-grid">
-                <div class="score-donut-card">
-                    <div class="score-donut score-donut-skill" style="--score: {{ skill_score }};">
-                        <div class="score-donut-center">
-                            <span>Skill</span>
-                            <strong>{{ skill_score }}%</strong>
+            <div class="score-pie-layout">
+                <div class="score-donut-card score-donut-card-wide">
+                    <div
+                        class="score-donut score-donut-combined"
+                        style="background: conic-gradient(#35c0b7 0 {{ skill_slice }}%, #48b8ef {{ skill_slice }}% {{ skill_slice + attendance_slice }}%, #2f87ff {{ skill_slice + attendance_slice }}% 100%);"
+                    >
+                        <div class="score-donut-center score-donut-center-large">
+                            <span>Overall Score</span>
+                            <strong>{{ overall_score }}%</strong>
+                            <small>{{ employee.position }}</small>
                         </div>
                     </div>
-                    <p>Current proficiency fit for the skills tracked in the system.</p>
                 </div>
-                <div class="score-donut-card">
-                    <div class="score-donut score-donut-attendance" style="--score: {{ attendance_score }};">
-                        <div class="score-donut-center">
-                            <span>Attendance</span>
-                            <strong>{{ attendance_score }}%</strong>
+                <div class="score-pie-legend">
+                    <div class="score-pie-legend-item">
+                        <span class="score-pie-dot score-pie-dot-skill"></span>
+                        <div>
+                            <strong>Skill Score</strong>
+                            <small>{{ skill_score }}% score · {{ skill_slice }}% of combined chart</small>
                         </div>
                     </div>
-                    <p>Consistency across presence, punctuality, and work-hour completion.</p>
-                </div>
-                <div class="score-donut-card">
-                    <div class="score-donut score-donut-performance" style="--score: {{ performance_score }};">
-                        <div class="score-donut-center">
-                            <span>Performance</span>
-                            <strong>{{ performance_score }}%</strong>
+                    <div class="score-pie-legend-item">
+                        <span class="score-pie-dot score-pie-dot-attendance"></span>
+                        <div>
+                            <strong>Attendance Score</strong>
+                            <small>{{ attendance_score }}% score · {{ attendance_slice }}% of combined chart</small>
                         </div>
                     </div>
-                    <p>Delivery quality, task completion, deadlines met, and project feedback.</p>
+                    <div class="score-pie-legend-item">
+                        <span class="score-pie-dot score-pie-dot-performance"></span>
+                        <div>
+                            <strong>Performance Score</strong>
+                            <small>{{ performance_score }}% score · {{ performance_slice }}% of combined chart</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
