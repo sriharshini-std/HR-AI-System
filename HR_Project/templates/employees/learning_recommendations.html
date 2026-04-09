@@ -26,6 +26,7 @@
 
 <div class="card">
     <h3>Filter Courses</h3>
+    {% set selected_platforms = selected_filters.get('platforms') or [] %}
     <form method="get" class="form-grid skill-search-form" id="skillSearchForm">
         <label for="skillSearchInput">Choose Skills To Search</label>
         <div
@@ -59,13 +60,36 @@
         </div>
         <small class="field-hint">If you do not select skills, AI Learning uses your project-related skills automatically.</small>
 
-        <label for="platform">Platform</label>
-        <select id="platform" name="platform">
-            <option value="">All Platforms</option>
-            {% for platform in platforms %}
-            <option value="{{ platform }}" {% if selected_filters.get('platform') == platform %}selected{% endif %}>{{ platform }}</option>
-            {% endfor %}
-        </select>
+        <div class="deadline-alert-picker course-filter-picker" data-alert-picker>
+            <label class="deadline-alert-label">Platform</label>
+            <div class="deadline-alert-options">
+                <label class="deadline-alert-option">
+                    <input
+                        type="checkbox"
+                        name="platforms"
+                        value="all"
+                        data-alert-all
+                        {% if selected_platforms|length == platforms|length or not selected_platforms %}checked{% endif %}
+                    >
+                    <span class="deadline-alert-control"></span>
+                    <span class="deadline-alert-text">All Platforms</span>
+                </label>
+                {% for platform in platforms %}
+                <label class="deadline-alert-option">
+                    <input
+                        type="checkbox"
+                        name="platforms"
+                        value="{{ platform }}"
+                        data-alert-option
+                        {% if not selected_platforms or platform in selected_platforms %}checked{% endif %}
+                    >
+                    <span class="deadline-alert-control"></span>
+                    <span class="deadline-alert-text">{{ platform }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <small class="field-hint">Choose one or more learning platforms. All Platforms is enabled by default.</small>
 
         <label for="price_type">Paid / Free</label>
         <select id="price_type" name="price_type">

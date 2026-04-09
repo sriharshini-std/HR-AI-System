@@ -5,7 +5,6 @@
 <div class="dashboard-page">
     <div class="page-header dashboard-page-header">
         <div>
-            <span class="section-kicker">Workspace Overview</span>
             <h1>Dashboard</h1>
         </div>
     </div>
@@ -94,12 +93,6 @@
                         <p>{{ spotlight.employee.position }}</p>
                     </div>
                     <span class="spotlight-score">{{ spotlight.overall_score }}</span>
-                </div>
-                <div class="spotlight-tabs">
-                    <a class="active" href="{{ url_for('employees.overall_scores_detail', employee_id=spotlight.employee.id) }}">Overview</a>
-                    <a href="{{ url_for('employees.skill_score_detail', employee_id=spotlight.employee.id) }}">Skills</a>
-                    <a href="{{ url_for('employees.performance_detail', employee_id=spotlight.employee.id) }}">Performance</a>
-                    <a href="{{ url_for('employees.attendance_detail', employee_id=spotlight.employee.id) }}">History</a>
                 </div>
                 <div class="spotlight-metric-list">
                     <div class="spotlight-metric-item">

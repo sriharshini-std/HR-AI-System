@@ -526,6 +526,12 @@ def ensure_previous_day_activity(target_day=None):
     if target_day.weekday() >= 5:
         return
 
+    existing_report_keys = {
+        (row.user_id, row.project_id, row.report_date)
+        for row in DailyProjectReport.query.filter_by(report_date=target_day).all()
+    }
+    created_report_keys = set()
+
     employees = User.query.filter(User.role != "Admin").all()
     for employee in employees:
         if _yesterday_leave_approved(employee.id, target_day):
@@ -551,12 +557,8 @@ def ensure_previous_day_activity(target_day=None):
             if _project_status_on(assignment.project, target_day) == "Ongoing"
         ]
         for assignment in active_assignments:
-            existing_report = DailyProjectReport.query.filter_by(
-                user_id=employee.id,
-                project_id=assignment.project_id,
-                report_date=target_day,
-            ).first()
-            if existing_report:
+            report_key = (employee.id, assignment.project_id, target_day)
+            if report_key in existing_report_keys or report_key in created_report_keys:
                 continue
 
             project = assignment.project
@@ -579,6 +581,7 @@ def ensure_previous_day_activity(target_day=None):
                     submitted_at=datetime.combine(target_day, time(hour=18, minute=random.randint(5, 40))),
                 )
             )
+            created_report_keys.add(report_key)
 
     db.session.commit()
 
@@ -758,6 +761,11 @@ def generate_ongoing_project_reports(projects=None, through_date=None):
     """Backfill one daily report per assigned employee per working day up to the selected date."""
     projects = projects or Project.query.filter_by(status="Ongoing").all()
     through_date = through_date or (date.today() - timedelta(days=1))
+    existing_report_keys = {
+        (row.user_id, row.project_id, row.report_date)
+        for row in DailyProjectReport.query.filter(DailyProjectReport.report_date <= through_date).all()
+    }
+    created_report_keys = set()
     summary_templates = [
         "Worked on {project} implementation tasks and resolved active backlog items.",
         "Reviewed assigned deliverables for {project} and completed planned execution work.",
@@ -787,12 +795,8 @@ def generate_ongoing_project_reports(projects=None, through_date=None):
                     current_day += timedelta(days=1)
                     continue
 
-                exists = DailyProjectReport.query.filter_by(
-                    user_id=employee_id,
-                    project_id=project.id,
-                    report_date=current_day,
-                ).first()
-                if exists:
+                report_key = (employee_id, project.id, current_day)
+                if report_key in existing_report_keys or report_key in created_report_keys:
                     current_day += timedelta(days=1)
                     continue
 
@@ -813,6 +817,7 @@ def generate_ongoing_project_reports(projects=None, through_date=None):
                         submitted_at=datetime.combine(current_day, time(hour=18, minute=random.randint(0, 30))),
                     )
                 )
+                created_report_keys.add(report_key)
                 created_count += 1
                 current_day += timedelta(days=1)
 

@@ -111,7 +111,7 @@ def _build_dashboard_search_items():
                 "category": "Employees",
                 "value": employee.name,
                 "meta": f"ID {employee.id} | {employee.email} | {employee.position}",
-                "url": url_for("employees.edit_employee", employee_id=employee.id),
+                "url": url_for("employees.employee_detail", employee_id=employee.id),
             }
         )
         search_items.append(
@@ -119,7 +119,7 @@ def _build_dashboard_search_items():
                 "category": "Employees",
                 "value": employee.email,
                 "meta": employee.name,
-                "url": url_for("employees.edit_employee", employee_id=employee.id),
+                "url": url_for("employees.employee_detail", employee_id=employee.id),
             }
         )
 

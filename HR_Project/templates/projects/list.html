@@ -146,7 +146,14 @@
                         </div>
                     </td>
                     <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
-                    <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=project.id) }}">View</a></td>
+                    <td>
+                        <a class="btn-link" href="{{ url_for('projects.project_detail', project_id=project.id) }}">View</a>
+                        {% if current_user.role == 'Admin' %}
+                        <form method="post" action="{{ url_for('projects.delete_project', project_id=project.id) }}" class="inline-form confirm-form" data-confirm-message="Delete this project and all its related records?">
+                            <button type="submit" class="btn-link danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
                 <tr><td colspan="9">No projects found.</td></tr>

@@ -21,6 +21,20 @@ function markBrowserNotificationSeen(notificationId) {
     sessionStorage.setItem("staffly-seen-browser-notifications", JSON.stringify(Array.from(currentIds)));
 }
 
+function getSeenPopupNotificationIds() {
+    try {
+        return JSON.parse(sessionStorage.getItem("staffly-seen-popup-notifications") || "[]");
+    } catch (error) {
+        return [];
+    }
+}
+
+function markPopupNotificationsSeen(notificationIds) {
+    const currentIds = new Set(getSeenPopupNotificationIds());
+    notificationIds.forEach((notificationId) => currentIds.add(notificationId));
+    sessionStorage.setItem("staffly-seen-popup-notifications", JSON.stringify(Array.from(currentIds)));
+}
+
 function showBrowserNotifications(items) {
     if (!getNotificationsEnabled()) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
@@ -76,6 +90,11 @@ async function loadNotifications() {
         const data = await response.json();
         countEl.textContent = data.count;
         showBrowserNotifications(data.items || []);
+        const unseenPopupItems = (data.items || []).filter((item) => !getSeenPopupNotificationIds().includes(item.id));
+        if (typeof window.showInAppNotificationPopup === "function" && unseenPopupItems.length) {
+            window.showInAppNotificationPopup(unseenPopupItems);
+            markPopupNotificationsSeen(unseenPopupItems.map((item) => item.id));
+        }
 
         if (!data.items.length) {
             dropdown.innerHTML = "<div class='notification-item'>No unread notifications</div>";
@@ -156,31 +175,33 @@ function initWorkspaceSettings() {
 }
 
 function initDeadlineAlertSelector() {
-    const picker = document.querySelector("[data-alert-picker]");
-    if (!picker) return;
+    const pickers = document.querySelectorAll("[data-alert-picker]");
+    if (!pickers.length) return;
 
-    const allInput = picker.querySelector("[data-alert-all]");
-    const optionInputs = Array.from(picker.querySelectorAll("[data-alert-option]"));
-    if (!allInput || !optionInputs.length) return;
+    pickers.forEach((picker) => {
+        const allInput = picker.querySelector("[data-alert-all]");
+        const optionInputs = Array.from(picker.querySelectorAll("[data-alert-option]"));
+        if (!allInput || !optionInputs.length) return;
 
-    function syncAllState() {
-        const allSelected = optionInputs.every((input) => input.checked);
-        allInput.checked = allSelected;
-    }
+        function syncAllState() {
+            const allSelected = optionInputs.every((input) => input.checked);
+            allInput.checked = allSelected;
+        }
 
-    allInput.addEventListener("change", () => {
+        allInput.addEventListener("change", () => {
+            optionInputs.forEach((input) => {
+                input.checked = allInput.checked;
+            });
+        });
+
         optionInputs.forEach((input) => {
-            input.checked = allInput.checked;
+            input.addEventListener("change", () => {
+                syncAllState();
+            });
         });
-    });
 
-    optionInputs.forEach((input) => {
-        input.addEventListener("change", () => {
-            syncAllState();
-        });
+        syncAllState();
     });
-
-    syncAllState();
 }
 
 function initConfirmModal() {
@@ -244,6 +265,35 @@ function initConfirmModal() {
     });
 }
 
+function initNotificationPopupModal() {
+    const modal = document.getElementById("notificationPopupModal");
+    const list = document.getElementById("notificationPopupList");
+    const okButton = document.getElementById("notificationPopupOk");
+    if (!modal || !list || !okButton) return;
+
+    function hideModal() {
+        modal.classList.add("hidden");
+    }
+
+    window.showInAppNotificationPopup = function showInAppNotificationPopup(items) {
+        if (!items.length) return;
+        list.innerHTML = items
+            .map(
+                (item) =>
+                    `<a class="notification-popup-item" href="${item.url || "/projects/notifications"}"><strong>${item.message}</strong><small>${item.created_at}</small></a>`
+            )
+            .join("");
+        modal.classList.remove("hidden");
+    };
+
+    okButton.addEventListener("click", hideModal);
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+            hideModal();
+        }
+    });
+}
+
 function initDeadlineAlertsModal() {
     const trigger = document.getElementById("deadlineAlertsTrigger");
     const modal = document.getElementById("deadlineAlertsModal");
@@ -303,6 +353,33 @@ function initMobileMenu() {
         if (!toggle.contains(event.target) && !panel.contains(event.target)) {
             panel.classList.add("hidden");
             panel.classList.remove("active");
+            toggle.setAttribute("aria-expanded", "false");
+        }
+    });
+}
+
+function initProfileMenu() {
+    const toggle = document.getElementById("profileMenuToggle");
+    const panel = document.getElementById("profileMenuPanel");
+    if (!toggle || !panel) return;
+
+    toggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const willOpen = panel.classList.contains("hidden");
+        panel.classList.toggle("hidden", !willOpen);
+        toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+
+    panel.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", () => {
+            panel.classList.add("hidden");
+            toggle.setAttribute("aria-expanded", "false");
+        });
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!toggle.contains(event.target) && !panel.contains(event.target)) {
+            panel.classList.add("hidden");
             toggle.setAttribute("aria-expanded", "false");
         }
     });
@@ -380,6 +457,13 @@ function initAttendanceLiveTimer() {
         intervalId: null,
     };
 
+    function normalizeBreakKey(rawBreakType) {
+        if (rawBreakType === "coffee") return "refreshment";
+        if (rawBreakType === "food") return "meal";
+        if (rawBreakType === "meeting") return "meeting";
+        return null;
+    }
+
     function showInlineMessage(message, fallbackStatus) {
         if (!message) return;
         if (reportReminderEl) {
@@ -452,9 +536,10 @@ function initAttendanceLiveTimer() {
             meeting: state.breaks.meeting,
         };
 
-        if (state.activeBreak && state.breakStartedAt) {
+        const activeBreakKey = normalizeBreakKey(state.activeBreak);
+        if (activeBreakKey && state.breakStartedAt) {
             const currentBreakSeconds = Math.max(0, Math.floor((Date.now() - state.breakStartedAt.getTime()) / 1000));
-            values[state.activeBreak] += currentBreakSeconds;
+            values[activeBreakKey] += currentBreakSeconds;
         }
 
         return values;
@@ -462,7 +547,7 @@ function initAttendanceLiveTimer() {
 
     function updateBreakDisplay() {
         const values = getDisplayedBreaks();
-        const activeBreak = state.activeBreak;
+        const activeBreak = normalizeBreakKey(state.activeBreak);
         refreshmentEl.textContent = `${Math.floor(values.refreshment / 60)} min`;
         mealEl.textContent = `${Math.floor(values.meal / 60)} min`;
         meetingEl.textContent = `${Math.floor(values.meeting / 60)} min`;
@@ -855,11 +940,13 @@ document.addEventListener("DOMContentLoaded", () => {
     initWorkspaceSettings();
     initDeadlineAlertSelector();
     initAdminSessionGate();
+    initNotificationPopupModal();
     initNotifications();
     initConfirmModal();
     initDeadlineAlertsModal();
     initProjectListInteractions();
     initMobileMenu();
+    initProfileMenu();
     initAttendanceLiveTimer();
     initSkillSearchPicker();
     initLiveSearchForms();

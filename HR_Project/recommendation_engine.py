@@ -389,8 +389,8 @@ def recommend_courses_for_employee(employee, filters: Dict | None = None) -> Dic
         return {**learning_targets, "courses": []}
 
     query = Course.query
-    if filters.get("platform"):
-        query = query.filter(Course.platform == filters["platform"])
+    if filters.get("platforms"):
+        query = query.filter(Course.platform.in_(filters["platforms"]))
     if filters.get("price_type"):
         query = query.filter(Course.price_type == filters["price_type"])
     if filters.get("delivery_mode"):

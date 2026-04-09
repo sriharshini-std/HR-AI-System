@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Employee Projects{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ employee.name }} Projects</h1>
+        <p class="page-subtitle">Project assignments currently linked with this employee.</p>
+    </div>
+    <a class="btn btn-secondary" href="{{ url_for('employees.overall_scores_detail', employee_id=employee.id) }}">Back to Scores</a>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Status</th>
+                <th>Start Date</th>
+                <th>Duration</th>
+                <th>End Date</th>
+                <th>Role in Project</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for assignment in assignments %}
+            <tr>
+                <td>{{ assignment.project.name }}</td>
+                <td><span class="tag">{{ assignment.project.computed_status }}</span></td>
+                <td>{{ assignment.project.start_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ assignment.project.duration_days }} days</td>
+                <td>{{ assignment.project.end_date.strftime('%Y-%m-%d') }}</td>
+                <td>{% if assignment.is_team_leader %}Team Leader{% else %}Member{% endif %}</td>
+                <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=assignment.project.id) }}">View Project</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7">No projects assigned yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

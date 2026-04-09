@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Employee Details{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+    <section class="card profile-hero-card">
+        <div class="profile-hero-main">
+            <div class="dashboard-employee-avatar profile-avatar">
+                {{ employee.name.split()[0][0] }}{% if employee.name.split()|length > 1 %}{{ employee.name.split()[-1][0] }}{% endif %}
+            </div>
+            <div>
+                <h1>{{ employee.name }}</h1>
+                <p>{{ employee.position }}{% if employee.department %} · {{ employee.department }}{% endif %}</p>
+            </div>
+        </div>
+        <div class="profile-hero-score">
+            <span>Overall Score</span>
+            <strong>{{ overall_score }}%</strong>
+        </div>
+    </section>
+
+    <div class="dashboard-stat-grid compact-dashboard-stats">
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Employee ID</span>
+            <strong>{{ employee.id }}</strong>
+            <small>{{ employee.email }}</small>
+        </div>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Attendance Score</span>
+            <strong>{{ attendance_score }}%</strong>
+            <small>Attendance consistency</small>
+        </div>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Performance Score</span>
+            <strong>{{ performance_score }}%</strong>
+            <small>Delivery performance</small>
+        </div>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Skill Score</span>
+            <strong>{{ skill_score }}%</strong>
+            <small>Current skill strength</small>
+        </div>
+    </div>
+
+    <section class="card profile-table-card">
+        <div class="card-head-inline">
+            <div>
+                <h3>Employee Details</h3>
+                <p>Profile, skills, and assigned projects in one place.</p>
+            </div>
+        </div>
+        <table>
+            <tbody>
+                <tr>
+                    <th>Access Role</th>
+                    <td>{{ employee.role }}</td>
+                    <th>Department</th>
+                    <td>{{ employee.department or '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Position</th>
+                    <td>{{ employee.position }}</td>
+                    <th>Total Projects</th>
+                    <td>{{ assignments|length }}</td>
+                </tr>
+                <tr>
+                    <th>Skills</th>
+                    <td colspan="3">
+                        {% for skill in employee.skills %}
+                        <span class="tag">{{ skill.name }}</span>
+                        {% else %}
+                        -
+                        {% endfor %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card profile-table-card">
+        <div class="card-head-inline">
+            <div>
+                <h3>Project Details</h3>
+                <p>All project assignments linked to this employee.</p>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th>Start Date</th>
+                    <th>Duration</th>
+                    <th>End Date</th>
+                    <th>Project Role</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in assignments %}
+                <tr>
+                    <td>{{ assignment.project.name }}</td>
+                    <td><span class="tag">{{ assignment.project.computed_status }}</span></td>
+                    <td>{{ assignment.project.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ assignment.project.duration_days }} days</td>
+                    <td>{{ assignment.project.end_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{% if assignment.is_team_leader %}Team Leader{% else %}Member{% endif %}</td>
+                    <td><a class="btn-link" href="{{ url_for('projects.project_detail', project_id=assignment.project.id) }}">View Project</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">No projects assigned yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+{% endblock %}

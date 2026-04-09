@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, flash, redirect, render_template, request,
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from models import AttendanceRecord, Course, DailyProjectReport, Notification, Project, ProjectAssignment, Skill, User, db
+from models import AttendanceRecord, Course, DailyProjectReport, Notification, Project, ProjectAlertLog, ProjectAssignment, Skill, User, db
 from notification_utils import create_notification_with_target
 from recommendation_engine import (
     calculate_attendance_score,
@@ -613,6 +613,18 @@ def remove_project_member(project_id):
 
     flash("Employee removed from project allocation.", "info")
     return redirect(url_for("projects.project_detail", project_id=project.id))
+
+
+@project_bp.route("/<int:project_id>/delete", methods=["POST"])
+@login_required
+@role_required("Admin")
+def delete_project(project_id):
+    project = Project.query.get_or_404(project_id)
+    ProjectAlertLog.query.filter_by(project_id=project.id).delete()
+    db.session.delete(project)
+    db.session.commit()
+    flash("Project deleted successfully.", "info")
+    return redirect(url_for("projects.list_projects"))
 
 
 @project_bp.route("/notifications/unread")

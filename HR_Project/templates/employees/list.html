@@ -43,27 +43,34 @@
     <table>
         <thead>
             <tr>
+                <th>No.</th>
                 <th>Employee ID</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Position</th>
                 <th>Access Role</th>
                 <th>Department</th>
+                <th>Total Projects</th>
                 <th>Overall Score</th>
                 <th class="skills-col">Skills</th>
                 {% if selected_project and current_user.role == 'Admin' %}<th>Allocate</th>{% endif %}
-                {% if current_user.role == 'Admin' %}<th>Actions</th>{% endif %}
             </tr>
         </thead>
         <tbody>
             {% for employee in employees %}
             <tr>
+                <td>{{ loop.index }}</td>
                 <td>{{ employee.id }}</td>
                 <td>{{ employee.name }}</td>
                 <td>{{ employee.email }}</td>
                 <td>{{ employee.position }}</td>
                 <td>{{ employee.role }}</td>
                 <td>{{ employee.department or '-' }}</td>
+                <td>
+                    <a class="btn-link" href="{{ url_for('employees.employee_project_details', employee_id=employee.id) }}">
+                        {{ employee.assignments|length }}
+                    </a>
+                </td>
                 <td>
                     <a class="btn-link" href="{{ url_for('employees.overall_scores_detail', employee_id=employee.id) }}">
                         {{ overall_scores.get(employee.id, 0) }}%
@@ -85,17 +92,9 @@
                     </form>
                 </td>
                 {% endif %}
-                {% if current_user.role == 'Admin' %}
-                <td>
-                    <a class="btn-link" href="{{ url_for('employees.edit_employee', employee_id=employee.id) }}">Edit</a>
-                    <form method="post" action="{{ url_for('employees.delete_employee', employee_id=employee.id) }}" class="inline-form confirm-form" data-confirm-message="Delete employee?">
-                        <button type="submit" class="btn-link danger">Delete</button>
-                    </form>
-                </td>
-                {% endif %}
             </tr>
             {% else %}
-            <tr><td colspan="10">No employees found.</td></tr>
+            <tr><td colspan="{{ 11 if selected_project and current_user.role == 'Admin' else 10 }}">No employees found.</td></tr>
             {% endfor %}
         </tbody>
     </table>

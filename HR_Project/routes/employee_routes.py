@@ -70,7 +70,7 @@ COURSE_PLATFORMS = [
 @role_required("Admin")
 def list_employees():
     query = request.args.get("q", "").strip()
-    base_employees = User.query.filter(User.role != "Admin").order_by(User.name.asc()).all()
+    base_employees = User.query.filter(User.role != "Admin").order_by(User.id.asc()).all()
     employees_query = User.query.filter(User.role != "Admin")
     if query:
         employees_query = employees_query.filter(
@@ -82,7 +82,7 @@ def list_employees():
                 db.cast(User.id, db.String).ilike(f"%{query}%"),
             )
         )
-    employees = employees_query.order_by(User.name.asc()).all()
+    employees = employees_query.order_by(User.id.asc()).all()
     project_id = request.args.get("project_id", type=int)
     selected_project = Project.query.get(project_id) if project_id else None
     overall_scores = {employee.id: calculate_overall_employee_score(employee) for employee in employees}
@@ -94,19 +94,19 @@ def list_employees():
                     "category": "Employee ID",
                     "value": str(employee.id),
                     "meta": f"{employee.name} | {employee.email}",
-                    "url": url_for("employees.edit_employee", employee_id=employee.id),
+                    "url": url_for("employees.employee_detail", employee_id=employee.id),
                 },
                 {
                     "category": "Name",
                     "value": employee.name,
                     "meta": f"ID {employee.id} | {employee.position}",
-                    "url": url_for("employees.edit_employee", employee_id=employee.id),
+                    "url": url_for("employees.employee_detail", employee_id=employee.id),
                 },
                 {
                     "category": "Email",
                     "value": employee.email,
                     "meta": employee.name,
-                    "url": url_for("employees.edit_employee", employee_id=employee.id),
+                    "url": url_for("employees.employee_detail", employee_id=employee.id),
                 },
             ]
         )
@@ -116,7 +116,7 @@ def list_employees():
                     "category": "Department",
                     "value": employee.department,
                     "meta": employee.name,
-                    "url": url_for("employees.edit_employee", employee_id=employee.id),
+                    "url": url_for("employees.employee_detail", employee_id=employee.id),
                 }
             )
     return render_template(
@@ -141,7 +141,7 @@ def admin_search():
 @login_required
 @role_required("Admin")
 def live_attendance():
-    employees = User.query.filter(User.role != "Admin").order_by(User.name.asc()).all()
+    employees = User.query.filter(User.role != "Admin").order_by(User.id.asc()).all()
     today = date.today()
     attendance_map = {
         row.user_id: row
@@ -161,6 +161,12 @@ def live_attendance():
             for leave_request in employee.leave_requests
         ):
             attendance_status = "On Approved Leave"
+        elif attendance_row and attendance_row.active_break_type == "coffee":
+            attendance_status = "On Refreshment Break"
+        elif attendance_row and attendance_row.active_break_type == "food":
+            attendance_status = "On Meal Break"
+        elif attendance_row and attendance_row.active_break_type == "meeting":
+            attendance_status = "In Meeting Break"
         elif attendance_row and attendance_row.logout_time:
             attendance_status = "Clocked Out"
         elif attendance_row and attendance_row.login_time:
@@ -187,8 +193,16 @@ def live_attendance():
         )
     return render_template(
         "employees/live_attendance.html",
-        logged_rows=[row for row in live_attendance_rows if row["attendance_status"] in {"Clocked In", "Clocked Out"}],
-        not_logged_rows=[row for row in live_attendance_rows if row["attendance_status"] not in {"Clocked In", "Clocked Out"}],
+        logged_rows=[
+            row
+            for row in live_attendance_rows
+            if row["attendance_status"] in {"Clocked In", "Clocked Out", "On Refreshment Break", "On Meal Break", "In Meeting Break"}
+        ],
+        not_logged_rows=[
+            row
+            for row in live_attendance_rows
+            if row["attendance_status"] not in {"Clocked In", "Clocked Out", "On Refreshment Break", "On Meal Break", "In Meeting Break"}
+        ],
         today=today,
     )
 
@@ -215,6 +229,12 @@ def live_attendance_detail(employee_id):
         for leave_request in employee.leave_requests
     ):
         attendance_status = "On Approved Leave"
+    elif attendance_row and attendance_row.active_break_type == "coffee":
+        attendance_status = "On Refreshment Break"
+    elif attendance_row and attendance_row.active_break_type == "food":
+        attendance_status = "On Meal Break"
+    elif attendance_row and attendance_row.active_break_type == "meeting":
+        attendance_status = "In Meeting Break"
     elif attendance_row and attendance_row.logout_time:
         attendance_status = "Clocked Out"
     elif attendance_row and attendance_row.login_time:
@@ -416,7 +436,7 @@ def add_employee():
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "").strip()
-        role = request.form.get("role", "Employee").strip()
+        role = "Employee"
         position = request.form.get("position", "Web Developer").strip()
         department = request.form.get("department", "").strip()
 
@@ -428,6 +448,7 @@ def add_employee():
                 employee=None,
                 designated_positions=DESIGNATED_POSITIONS,
                 selected_project=selected_project,
+                is_self_edit=False,
             )
 
         if User.query.filter_by(email=email).first():
@@ -438,6 +459,7 @@ def add_employee():
                 employee=None,
                 designated_positions=DESIGNATED_POSITIONS,
                 selected_project=selected_project,
+                is_self_edit=False,
             )
 
         if position not in DESIGNATED_POSITIONS:
@@ -492,24 +514,35 @@ def add_employee():
         employee=None,
         designated_positions=DESIGNATED_POSITIONS,
         selected_project=selected_project,
+        is_self_edit=False,
     )
 
 
+@employee_bp.route("/profile/edit", methods=["GET", "POST"])
 @employee_bp.route("/<int:employee_id>/edit", methods=["GET", "POST"])
 @login_required
-@role_required("Admin")
-def edit_employee(employee_id):
+def edit_employee(employee_id=None):
+    user = current_user()
+    if employee_id is None:
+        employee_id = user.id
+
     employee = User.query.get_or_404(employee_id)
+    is_self_edit = user.role != "Admin" and user.id == employee.id
+
+    if user.role == "Admin":
+        flash("Admins can add employees, but employee profile editing is reserved for the employees themselves.", "warning")
+        return redirect(url_for("employees.list_employees"))
+
+    if not is_self_edit:
+        flash("You can only edit your own profile.", "warning")
+        return redirect(url_for("auth.dashboard"))
+
     skills = Skill.query.order_by(Skill.name.asc()).all()
 
     if request.method == "POST":
         employee.name = request.form.get("name", "").strip()
-        employee.email = request.form.get("email", "").strip().lower()
-        employee.role = request.form.get("role", "Employee").strip()
-
         chosen_position = request.form.get("position", "Web Developer").strip()
         employee.position = chosen_position if chosen_position in DESIGNATED_POSITIONS else "Web Developer"
-
         employee.department = request.form.get("department", "").strip()
 
         new_password = request.form.get("password", "").strip()
@@ -520,8 +553,8 @@ def edit_employee(employee_id):
         employee.skills = Skill.query.filter(Skill.id.in_(selected_skill_ids)).all() if selected_skill_ids else []
 
         db.session.commit()
-        flash("Employee updated successfully.", "success")
-        return redirect(url_for("employees.list_employees"))
+        flash("Your profile was updated successfully.", "success")
+        return redirect(url_for("employees.overall_scores_detail", employee_id=employee.id))
 
     return render_template(
         "employees/form.html",
@@ -529,6 +562,7 @@ def edit_employee(employee_id):
         employee=employee,
         designated_positions=DESIGNATED_POSITIONS,
         selected_project=None,
+        is_self_edit=is_self_edit,
     )
 
 
@@ -536,15 +570,7 @@ def edit_employee(employee_id):
 @login_required
 @role_required("Admin")
 def delete_employee(employee_id):
-    employee = User.query.get_or_404(employee_id)
-
-    if employee.role == "Admin":
-        flash("Admin user cannot be deleted here.", "warning")
-        return redirect(url_for("employees.list_employees"))
-
-    db.session.delete(employee)
-    db.session.commit()
-    flash("Employee deleted.", "info")
+    flash("Employee deletion is disabled. Admins can only add employees.", "warning")
     return redirect(url_for("employees.list_employees"))
 
 
@@ -943,6 +969,53 @@ def overall_scores_detail(employee_id):
     )
 
 
+@employee_bp.route("/<int:employee_id>/details")
+@login_required
+def employee_detail(employee_id):
+    unauthorized_redirect = _authorize_employee_detail_view(employee_id)
+    if unauthorized_redirect:
+        return unauthorized_redirect
+
+    employee = User.query.get_or_404(employee_id)
+    assignments = (
+        ProjectAssignment.query
+        .filter_by(user_id=employee.id)
+        .order_by(ProjectAssignment.assigned_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "employees/detail.html",
+        employee=employee,
+        assignments=assignments,
+        attendance_score=calculate_attendance_score(employee),
+        performance_score=calculate_performance_score(employee),
+        skill_score=calculate_skill_score(employee),
+        overall_score=calculate_overall_employee_score(employee),
+    )
+
+
+@employee_bp.route("/<int:employee_id>/projects")
+@login_required
+def employee_project_details(employee_id):
+    unauthorized_redirect = _authorize_employee_detail_view(employee_id)
+    if unauthorized_redirect:
+        return unauthorized_redirect
+
+    employee = User.query.get_or_404(employee_id)
+    assignments = (
+        ProjectAssignment.query
+        .filter_by(user_id=employee.id)
+        .order_by(ProjectAssignment.assigned_at.desc())
+        .all()
+    )
+    return render_template(
+        "employees/project_details.html",
+        employee=employee,
+        assignments=assignments,
+    )
+
+
 @employee_bp.route("/project-reports")
 @login_required
 def my_project_reports():
@@ -977,11 +1050,14 @@ def learning_recommendations():
         return redirect(url_for("auth.dashboard"))
 
     selected_skill_names = [item.strip() for item in request.args.getlist("selected_skills") if item.strip()]
+    selected_platforms = [item.strip() for item in request.args.getlist("platforms") if item.strip()]
+    if "all" in selected_platforms:
+        selected_platforms = COURSE_PLATFORMS.copy()
     skill_scope = request.args.get("skill_scope", "").strip().lower()
     filters = {
         "selected_skill_names": selected_skill_names,
         "skill_scope": skill_scope if skill_scope in {"required", "all"} else "",
-        "platform": request.args.get("platform", "").strip(),
+        "platforms": selected_platforms,
         "price_type": request.args.get("price_type", "").strip(),
         "delivery_mode": request.args.get("delivery_mode", "").strip(),
         "level": request.args.get("level", "").strip(),
