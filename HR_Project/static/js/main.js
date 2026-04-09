@@ -359,6 +359,13 @@ function initAttendanceLiveTimer() {
     if (!timerEl || !statusEl || !clockToggleBtn) return;
 
     const pendingReportCount = Number(hudGrid?.dataset.pendingReports || 0);
+    const initialState = (() => {
+        try {
+            return JSON.parse(hudGrid?.dataset.attendanceState || "{}");
+        } catch (error) {
+            return {};
+        }
+    })();
 
     const state = {
         startTime: null,
@@ -372,6 +379,67 @@ function initAttendanceLiveTimer() {
         breakStartedAt: null,
         intervalId: null,
     };
+
+    function showInlineMessage(message, fallbackStatus) {
+        if (!message) return;
+        if (reportReminderEl) {
+            reportReminderEl.textContent = message;
+        }
+        if (fallbackStatus) {
+            statusEl.textContent = fallbackStatus;
+        }
+    }
+
+    function applyAttendanceState(payload) {
+        state.startTime = payload.login_time_iso ? new Date(payload.login_time_iso) : null;
+        state.endTime = payload.logout_time_iso ? new Date(payload.logout_time_iso) : null;
+        state.breakStartedAt = payload.break_started_at_iso ? new Date(payload.break_started_at_iso) : null;
+        state.activeBreak = payload.active_break_type || null;
+        state.breaks.refreshment = Number(payload.coffee_break_minutes || 0) * 60;
+        state.breaks.meal = Number(payload.food_break_minutes || 0) * 60;
+        state.breaks.meeting = Number(payload.meeting_break_minutes || 0) * 60;
+
+        statusEl.textContent = payload.status || "Not clocked in";
+        clockInEl.textContent = payload.login_time_label || "-";
+        clockOutEl.textContent = payload.logout_time_label || "-";
+        if (payload.duration_hours !== null && payload.duration_hours !== undefined) {
+            netHoursEl.textContent = `${Number(payload.duration_hours).toFixed(2)} hrs`;
+        } else if (!state.startTime) {
+            netHoursEl.textContent = "-";
+        }
+
+        if (state.startTime && !state.endTime) {
+            startTicker();
+        } else {
+            stopTicker();
+        }
+        updateBreakDisplay();
+        updateButtonState();
+        renderTimer();
+    }
+
+    async function postAttendanceAction(url, formData = null) {
+        const options = {
+            method: "POST",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+            },
+        };
+
+        if (formData) {
+            options.body = formData;
+        }
+
+        const response = await fetch(url, options);
+        const payload = await response.json();
+        if (payload.attendance_state) {
+            applyAttendanceState(payload.attendance_state);
+        }
+        if (payload.message) {
+            showInlineMessage(payload.message, payload.category === "warning" ? "Report pending" : payload.attendance_state?.status);
+        }
+        return { response, payload };
+    }
 
     function totalBreakSeconds(values = state.breaks) {
         return values.refreshment + values.meal + values.meeting;
@@ -441,7 +509,9 @@ function initAttendanceLiveTimer() {
     function renderTimer() {
         if (!state.startTime) {
             timerEl.textContent = "00:00:00";
-            netHoursEl.textContent = "-";
+            if (!netHoursEl.textContent.trim()) {
+                netHoursEl.textContent = "-";
+            }
             updateBreakDisplay();
             return;
         }
@@ -493,83 +563,58 @@ function initAttendanceLiveTimer() {
     }
 
     clockToggleBtn.addEventListener("click", () => {
-        if (!state.startTime) {
-            state.startTime = new Date();
-            state.endTime = null;
-            state.breaks.refreshment = 0;
-            state.breaks.meal = 0;
-            state.breaks.meeting = 0;
-            state.activeBreak = null;
-            state.breakStartedAt = null;
-            statusEl.textContent = "Clocked in";
-            clockInEl.textContent = formatLocalTime(state.startTime);
-            clockOutEl.textContent = "-";
-            updateBreakDisplay();
-            renderTimer();
-            updateButtonState();
-            startTicker();
-            return;
-        }
-
-        if (state.activeBreak && state.breakStartedAt) {
-            const breakSeconds = Math.max(0, Math.floor((Date.now() - state.breakStartedAt.getTime()) / 1000));
-            state.breaks[state.activeBreak] += breakSeconds;
-            state.activeBreak = null;
-            state.breakStartedAt = null;
-            statusEl.textContent = "Clocked in";
-            updateButtonState();
-            renderTimer();
-            return;
-        }
-
-        if (!state.endTime && !state.activeBreak) {
-            if (pendingReportCount > 0) {
-                statusEl.textContent = "Report pending";
-                if (reportReminderEl) {
-                    reportReminderEl.textContent = "Submit today's project reports before clocking out.";
-                }
-                showReportReminderModal();
+        const run = async () => {
+            if (!state.startTime) {
+                await postAttendanceAction("/employees/attendance/check-in");
                 return;
             }
-            state.endTime = new Date();
-            statusEl.textContent = "Clocked out";
-            clockOutEl.textContent = formatLocalTime(state.endTime);
-            renderTimer();
-            updateButtonState();
-            stopTicker();
-        }
+
+            if (state.activeBreak && state.breakStartedAt) {
+                await postAttendanceAction("/employees/attendance/resume-work");
+                return;
+            }
+
+            if (!state.endTime && !state.activeBreak) {
+                const { response } = await postAttendanceAction("/employees/attendance/check-out");
+                if (!response.ok && pendingReportCount > 0) {
+                    showReportReminderModal();
+                }
+            }
+        };
+
+        run().catch(() => {
+            showInlineMessage("Attendance action failed. Please refresh and try again.", "Attendance update failed");
+        });
     });
 
     refreshmentBtn.addEventListener("click", () => {
         if (!state.startTime || state.endTime || state.activeBreak) return;
-        state.activeBreak = "refreshment";
-        state.breakStartedAt = new Date();
-        statusEl.textContent = "On refreshment break";
-        updateButtonState();
-        renderTimer();
+        const formData = new FormData();
+        formData.append("break_type", "coffee");
+        postAttendanceAction("/employees/attendance/add-break", formData).catch(() => {
+            showInlineMessage("Could not start refreshment break.", "Break update failed");
+        });
     });
 
     mealBtn.addEventListener("click", () => {
         if (!state.startTime || state.endTime || state.activeBreak) return;
-        state.activeBreak = "meal";
-        state.breakStartedAt = new Date();
-        statusEl.textContent = "On meal break";
-        updateButtonState();
-        renderTimer();
+        const formData = new FormData();
+        formData.append("break_type", "food");
+        postAttendanceAction("/employees/attendance/add-break", formData).catch(() => {
+            showInlineMessage("Could not start meal break.", "Break update failed");
+        });
     });
 
     meetingBtn.addEventListener("click", () => {
         if (!state.startTime || state.endTime || state.activeBreak) return;
-        state.activeBreak = "meeting";
-        state.breakStartedAt = new Date();
-        statusEl.textContent = "In meeting";
-        updateButtonState();
-        renderTimer();
+        const formData = new FormData();
+        formData.append("break_type", "meeting");
+        postAttendanceAction("/employees/attendance/add-break", formData).catch(() => {
+            showInlineMessage("Could not start meeting break.", "Break update failed");
+        });
     });
 
-    updateBreakDisplay();
-    updateButtonState();
-    renderTimer();
+    applyAttendanceState(initialState);
 }
 
 function initSkillSearchPicker() {

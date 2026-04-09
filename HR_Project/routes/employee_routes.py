@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from constants import DESIGNATED_POSITIONS
@@ -254,6 +254,84 @@ def calculate_net_duration_hours(record, logout_time):
     return round(max(0.0, gross_hours - break_hours), 2)
 
 
+def finalize_active_break(record, end_time=None):
+    if not record or not record.active_break_type or not record.break_started_at:
+        return
+
+    end_time = end_time or datetime.now()
+    elapsed_minutes = max(
+        1,
+        int(round((end_time - record.break_started_at).total_seconds() / 60)),
+    )
+
+    if record.active_break_type == "coffee":
+        record.coffee_break_minutes = int(record.coffee_break_minutes or 0) + elapsed_minutes
+    elif record.active_break_type == "food":
+        record.food_break_minutes = int(record.food_break_minutes or 0) + elapsed_minutes
+    elif record.active_break_type == "meeting":
+        record.meeting_break_minutes = int(record.meeting_break_minutes or 0) + elapsed_minutes
+
+    record.active_break_type = None
+    record.break_started_at = None
+
+
+def attendance_state_payload(record):
+    if not record or not record.login_time:
+        return {
+            "status": "Not clocked in",
+            "login_time_label": "-",
+            "logout_time_label": "-",
+            "duration_hours": None,
+            "login_time_iso": None,
+            "logout_time_iso": None,
+            "break_started_at_iso": None,
+            "active_break_type": None,
+            "coffee_break_minutes": 0,
+            "food_break_minutes": 0,
+            "meeting_break_minutes": 0,
+        }
+
+    if record.logout_time:
+        status = "Clocked out"
+    elif record.active_break_type == "coffee":
+        status = "On refreshment break"
+    elif record.active_break_type == "food":
+        status = "On meal break"
+    elif record.active_break_type == "meeting":
+        status = "In meeting"
+    else:
+        status = "Clocked in"
+
+    return {
+        "status": status,
+        "login_time_label": record.login_time.strftime("%I:%M %p"),
+        "logout_time_label": record.logout_time.strftime("%I:%M %p") if record.logout_time else "-",
+        "duration_hours": record.duration_hours,
+        "login_time_iso": record.login_time.isoformat(),
+        "logout_time_iso": record.logout_time.isoformat() if record.logout_time else None,
+        "break_started_at_iso": record.break_started_at.isoformat() if record.break_started_at else None,
+        "active_break_type": record.active_break_type,
+        "coffee_break_minutes": int(record.coffee_break_minutes or 0),
+        "food_break_minutes": int(record.food_break_minutes or 0),
+        "meeting_break_minutes": int(record.meeting_break_minutes or 0),
+    }
+
+
+def attendance_action_response(message, category, record, status_code=200):
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(
+            {
+                "ok": category != "danger",
+                "message": message,
+                "category": category,
+                "attendance_state": attendance_state_payload(record),
+            }
+        ), status_code
+
+    flash(message, category)
+    return redirect(url_for("auth.dashboard"))
+
+
 def _find_overlapping_leave(employee_id, start_date_value, end_date_value):
     return (
         LeaveRequest.query
@@ -498,9 +576,10 @@ def attendance_check_in():
     record.login_time = datetime.now()
     record.logout_time = None
     record.duration_hours = None
+    record.active_break_type = None
+    record.break_started_at = None
     db.session.commit()
-    flash("Clock in recorded.", "success")
-    return redirect(url_for("auth.dashboard"))
+    return attendance_action_response("Clock in recorded.", "success", record)
 
 
 @employee_bp.route("/attendance/check-out", methods=["POST"])
@@ -513,17 +592,26 @@ def attendance_check_out():
 
     record = get_today_attendance(user.id)
     if not record or not record.login_time:
-        flash("Please log in first.", "warning")
-        return redirect(url_for("auth.dashboard"))
+        return attendance_action_response("Please log in first.", "warning", record, status_code=400)
     if record.logout_time:
-        flash("You have already logged out for today.", "info")
-        return redirect(url_for("auth.dashboard"))
+        return attendance_action_response("You have already logged out for today.", "info", record, status_code=400)
+
+    pending_projects, _submitted_reports = _employee_pending_project_reports(user)
+    if pending_projects:
+        project_names = ", ".join(project.name for project in pending_projects)
+        return attendance_action_response(
+            f"Submit today's report before clocking out. Pending: {project_names}",
+            "warning",
+            record,
+            status_code=400,
+        )
+
+    finalize_active_break(record)
 
     record.logout_time = datetime.now()
     record.duration_hours = calculate_net_duration_hours(record, record.logout_time)
     db.session.commit()
-    flash("Clock out recorded.", "success")
-    return redirect(url_for("auth.dashboard"))
+    return attendance_action_response("Clock out recorded.", "success", record)
 
 
 @employee_bp.route("/attendance/add-break", methods=["POST"])
@@ -541,22 +629,39 @@ def attendance_add_break():
 
     record = get_today_attendance(user.id)
     if not record or not record.login_time:
-        flash("Please log in before adding breaks.", "warning")
-        return redirect(url_for("auth.dashboard"))
+        return attendance_action_response("Please log in before adding breaks.", "warning", record, status_code=400)
     if record.logout_time:
-        flash("You cannot add breaks after logging out.", "warning")
-        return redirect(url_for("auth.dashboard"))
+        return attendance_action_response("You cannot add breaks after logging out.", "warning", record, status_code=400)
+    if record.active_break_type:
+        return attendance_action_response("Resume work before starting another break.", "warning", record, status_code=400)
 
-    if break_type == "coffee":
-        record.coffee_break_minutes = int(record.coffee_break_minutes or 0) + BREAK_MINUTES[break_type]
-    elif break_type == "food":
-        record.food_break_minutes = int(record.food_break_minutes or 0) + BREAK_MINUTES[break_type]
-    else:
-        record.meeting_break_minutes = int(record.meeting_break_minutes or 0) + BREAK_MINUTES[break_type]
+    record.active_break_type = break_type
+    record.break_started_at = datetime.now()
 
     db.session.commit()
-    flash(f"{BREAK_LABELS[break_type]} recorded.", "success")
-    return redirect(url_for("auth.dashboard"))
+    return attendance_action_response(f"{BREAK_LABELS[break_type]} started.", "success", record)
+
+
+@employee_bp.route("/attendance/resume-work", methods=["POST"])
+@login_required
+def attendance_resume_work():
+    user = current_user()
+    if user.role == "Admin":
+        flash("Attendance actions are available only for employees.", "warning")
+        return redirect(url_for("auth.dashboard"))
+
+    record = get_today_attendance(user.id)
+    if not record or not record.login_time:
+        return attendance_action_response("Please log in first.", "warning", record, status_code=400)
+    if record.logout_time:
+        return attendance_action_response("You have already logged out for today.", "info", record, status_code=400)
+    if not record.active_break_type or not record.break_started_at:
+        return attendance_action_response("No active break is running.", "info", record, status_code=400)
+
+    active_break_type = record.active_break_type
+    finalize_active_break(record)
+    db.session.commit()
+    return attendance_action_response(f"{BREAK_LABELS[active_break_type]} ended. Work resumed.", "success", record)
 
 
 @employee_bp.route("/<int:employee_id>/attendance")

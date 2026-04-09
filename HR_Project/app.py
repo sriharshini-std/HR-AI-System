@@ -389,6 +389,10 @@ def ensure_attendance_log_columns():
         db.session.execute(
             text("ALTER TABLE attendance_records ADD COLUMN meeting_break_minutes INTEGER NOT NULL DEFAULT 0")
         )
+    if "active_break_type" not in column_names:
+        db.session.execute(text("ALTER TABLE attendance_records ADD COLUMN active_break_type VARCHAR(20)"))
+    if "break_started_at" not in column_names:
+        db.session.execute(text("ALTER TABLE attendance_records ADD COLUMN break_started_at DATETIME"))
     db.session.commit()
 
 

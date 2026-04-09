@@ -5,7 +5,7 @@ import secrets
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from constants import ALERT_PREFERENCE_FIELDS, DEADLINE_ALERT_OPTIONS
-from models import DailyProjectReport, Notification, Project, ProjectAssignment, User, db
+from models import AttendanceRecord, DailyProjectReport, Notification, Project, ProjectAssignment, User, db
 from notification_utils import (
     get_sendgrid_settings_display,
     save_sendgrid_settings,
@@ -72,6 +72,38 @@ def _employee_pending_reports(user):
         assignment.project for assignment in ongoing_assignments if assignment.project_id not in submitted_project_ids
     ]
     return pending_projects
+
+
+def _build_attendance_dashboard_state(user):
+    today = date.today()
+    record = AttendanceRecord.query.filter_by(user_id=user.id, record_date=today).first()
+
+    if not record or not record.login_time:
+        status = "Not clocked in"
+    elif record.logout_time:
+        status = "Clocked out"
+    elif record.active_break_type == "coffee":
+        status = "On refreshment break"
+    elif record.active_break_type == "food":
+        status = "On meal break"
+    elif record.active_break_type == "meeting":
+        status = "In meeting"
+    else:
+        status = "Clocked in"
+
+    return {
+        "status": status,
+        "login_time_label": record.login_time.strftime("%I:%M %p") if record and record.login_time else "-",
+        "logout_time_label": record.logout_time.strftime("%I:%M %p") if record and record.logout_time else "-",
+        "duration_hours": record.duration_hours if record and record.duration_hours is not None else None,
+        "login_time_iso": record.login_time.isoformat() if record and record.login_time else None,
+        "logout_time_iso": record.logout_time.isoformat() if record and record.logout_time else None,
+        "break_started_at_iso": record.break_started_at.isoformat() if record and record.break_started_at else None,
+        "active_break_type": record.active_break_type if record else None,
+        "coffee_break_minutes": int(record.coffee_break_minutes or 0) if record else 0,
+        "food_break_minutes": int(record.food_break_minutes or 0) if record else 0,
+        "meeting_break_minutes": int(record.meeting_break_minutes or 0) if record else 0,
+    }
 
 
 def _build_dashboard_search_items():
@@ -442,6 +474,7 @@ def dashboard():
             my_projects=my_projects,
             pending_report_projects=_employee_pending_reports(user),
             alert_notifications=alert_notifications,
+            attendance_state=_build_attendance_dashboard_state(user),
         )
 
     total_employees = User.query.filter(User.role != "Admin").count()

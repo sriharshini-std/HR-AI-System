@@ -195,6 +195,8 @@ class AttendanceRecord(db.Model):
     coffee_break_minutes = db.Column(db.Integer, nullable=False, default=0)
     food_break_minutes = db.Column(db.Integer, nullable=False, default=0)
     meeting_break_minutes = db.Column(db.Integer, nullable=False, default=0)
+    active_break_type = db.Column(db.String(20), nullable=True)
+    break_started_at = db.Column(db.DateTime, nullable=True)
 
     @property
     def total_break_minutes(self):

@@ -8,27 +8,31 @@
         <h3>Today's Attendance</h3>
         <a class="btn-link" href="{{ url_for('employees.attendance_detail', employee_id=current_user.id) }}">View Attendance History</a>
     </div>
-    <p class="attendance-note">Temporary mode: today's clock activity is not recorded yet and resets whenever you refresh the page.</p>
+    <p class="attendance-note">Today's attendance is recorded live and stays available after refresh, logout, and login.</p>
     <div class="attendance-summary-grid">
         <div class="attendance-summary-card">
             <span>Status</span>
-            <strong id="attendanceStatus">Not clocked in</strong>
+            <strong id="attendanceStatus">{{ attendance_state.status }}</strong>
         </div>
         <div class="attendance-summary-card">
             <span>Clock In Time</span>
-            <strong id="attendanceClockIn">-</strong>
+            <strong id="attendanceClockIn">{{ attendance_state.login_time_label }}</strong>
         </div>
         <div class="attendance-summary-card">
             <span>Clock Out Time</span>
-            <strong id="attendanceClockOut">-</strong>
+            <strong id="attendanceClockOut">{{ attendance_state.logout_time_label }}</strong>
         </div>
         <div class="attendance-summary-card">
             <span>Worked Time</span>
-            <strong id="attendanceNetHours">-</strong>
+            <strong id="attendanceNetHours">{% if attendance_state.duration_hours is not none %}{{ '%.2f'|format(attendance_state.duration_hours) }} hrs{% else %}-{% endif %}</strong>
         </div>
     </div>
 
-    <div class="attendance-hud-grid" data-pending-reports="{{ pending_report_projects|length }}">
+    <div
+        class="attendance-hud-grid"
+        data-pending-reports="{{ pending_report_projects|length }}"
+        data-attendance-state='{{ attendance_state|tojson }}'
+    >
         <button class="hud-timer-card hud-action-card hud-work-card" id="clockToggleBtn" type="button">
             <div class="hud-ring"></div>
             <div class="hud-ring hud-ring-mid"></div>
@@ -36,7 +40,7 @@
             <div class="hud-center">
                 <span class="hud-label">Work Session Timer</span>
                 <strong id="attendanceLiveTimer">00:00:00</strong>
-                <small id="clockToggleLabel">Tap to clock in</small>
+                <small id="clockToggleLabel">Loading attendance...</small>
             </div>
         </button>
 
@@ -47,7 +51,7 @@
             <div class="hud-center">
                 <span class="hud-label">Refreshment Break Timer</span>
                 <strong id="refreshmentBreakTimer">00:00:00</strong>
-                <small id="refreshmentBreakValue">Tap to start refreshment break</small>
+                <small id="refreshmentBreakValue">0 min</small>
             </div>
         </button>
 
@@ -58,7 +62,7 @@
             <div class="hud-center">
                 <span class="hud-label">Meal Break Timer</span>
                 <strong id="mealBreakTimer">00:00:00</strong>
-                <small id="mealBreakValue">Tap to start meal break</small>
+                <small id="mealBreakValue">0 min</small>
             </div>
         </button>
 
@@ -69,7 +73,7 @@
             <div class="hud-center">
                 <span class="hud-label">Meeting Break Timer</span>
                 <strong id="meetingBreakTimer">00:00:00</strong>
-                <small id="meetingBreakValue">Tap to start meeting break</small>
+                <small id="meetingBreakValue">0 min</small>
             </div>
         </button>
 
