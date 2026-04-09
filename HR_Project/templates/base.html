@@ -46,7 +46,7 @@
         <main class="main-content">
             <header class="topbar">
                 <button id="mobileMenuToggle" class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="mobileMenuPanel" aria-label="Open menu"><i class="fa-solid fa-bars" style="color: rgb(0, 0, 0);"></i></button>
-                <div>
+                <div class="topbar-user">
                     <strong>{{ current_user.name }}</strong>
                     {% if current_user.role == 'Admin' %}
                     <small>System Admin HR</small>
@@ -54,17 +54,24 @@
                     <small>{{ current_user.position }} | {{ current_user.role }}</small>
                     {% endif %}
                 </div>
-                <div class="topbar-actions">
-                <a class="topbar-icon-btn" href="{{ url_for('auth.settings') }}" title="Open settings" aria-label="Open settings">
-                    <i class="fa-solid fa-sliders"></i>
-                </a>
-                <div class="notification-wrapper">
-                    <a id="notificationBellLink" class="bell-btn bell-link" href="{{ url_for('projects.notifications_page') }}" title="Open all notifications" aria-label="Open all notifications">🔔</a>
-                    <button id="notificationCountBtn" class="notification-count-btn notification-badge-btn" type="button" title="Show unread notifications" aria-label="Show unread notifications">
-                        <span id="notificationCount">{{ unread_count }}</span>
-                    </button>
-                    <div id="notificationDropdown" class="notification-dropdown hidden"></div>
+                <div class="topbar-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Search workspace" aria-label="Search workspace">
                 </div>
+                <div class="topbar-actions">
+                    <a class="topbar-icon-btn" href="{{ url_for('auth.settings') }}" title="Open settings" aria-label="Open settings">
+                        <i class="fa-solid fa-sliders"></i>
+                    </a>
+                    <div class="notification-wrapper">
+                        <a id="notificationBellLink" class="bell-btn bell-link" href="{{ url_for('projects.notifications_page') }}" title="Open all notifications" aria-label="Open all notifications">🔔</a>
+                        <button id="notificationCountBtn" class="notification-count-btn notification-badge-btn" type="button" title="Show unread notifications" aria-label="Show unread notifications">
+                            <span id="notificationCount">{{ unread_count }}</span>
+                        </button>
+                        <div id="notificationDropdown" class="notification-dropdown hidden"></div>
+                    </div>
+                    <div class="topbar-avatar" aria-hidden="true">
+                        {{ current_user.name.split()[0][0] }}{% if current_user.name.split()|length > 1 %}{{ current_user.name.split()[-1][0] }}{% endif %}
+                    </div>
                 </div>
             </header>
 

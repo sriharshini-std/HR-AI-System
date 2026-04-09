@@ -2,22 +2,52 @@
 {% block title %}Project Detail{% endblock %}
 
 {% block content %}
-<h1>{{ project.name }}</h1>
-<div class="card">
-    <p>{{ project.description or 'No description provided.' }}</p>
-    <p><strong>Status:</strong> <span class="tag">{{ project.computed_status }}</span></p>
-    <p><strong>Start Date:</strong> {{ project.start_date.strftime('%Y-%m-%d') }}</p>
-    <p><strong>Duration:</strong> {{ project.duration_days }} days</p>
-    <p><strong>End Date:</strong> {{ project.end_date.strftime('%Y-%m-%d') }}</p>
-    <p>
-        <strong>Required Skills:</strong>
-        {% for skill in project.required_skills %}
-            <span class="tag">{{ skill.name }}</span>
-        {% else %}
-            -
-        {% endfor %}
-    </p>
-</div>
+<div class="profile-page">
+    <section class="card profile-hero-card">
+        <div class="profile-hero-main">
+            <div class="dashboard-employee-avatar profile-avatar project-avatar">
+                <i class="fa-solid fa-diagram-project"></i>
+            </div>
+            <div>
+                <span class="section-kicker">Project Assignment</span>
+                <h1>{{ project.name }}</h1>
+                <p>{{ project.description or 'No description provided.' }}</p>
+            </div>
+        </div>
+        <div class="profile-hero-score">
+            <span>Status</span>
+            <strong>{{ project.computed_status }}</strong>
+        </div>
+    </section>
+
+    <div class="dashboard-stat-grid compact-dashboard-stats">
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Start Date</span>
+            <strong>{{ project.start_date.strftime('%Y-%m-%d') }}</strong>
+            <small>Project execution start</small>
+        </div>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Duration</span>
+            <strong>{{ project.duration_days }} days</strong>
+            <small>Planned project window</small>
+        </div>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">End Date</span>
+            <strong>{{ project.end_date.strftime('%Y-%m-%d') }}</strong>
+            <small>Expected project closure</small>
+        </div>
+    </div>
+
+    <div class="card project-skill-shell">
+        <strong>Required Skills</strong>
+        <div class="project-skill-chip-row">
+            {% for skill in project.required_skills %}
+                <span class="tag">{{ skill.name }}</span>
+            {% else %}
+                <span class="tag">No required skills</span>
+            {% endfor %}
+        </div>
+    </div>
 
 {% if project.computed_status == "Ongoing" %}
 <div class="card">

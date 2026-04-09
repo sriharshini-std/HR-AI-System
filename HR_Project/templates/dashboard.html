@@ -2,94 +2,165 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-<div class="card dashboard-search-card">
-    <form class="global-search-form live-search-form dashboard-search-form" data-live-search='{{ dashboard_search_items|tojson|safe }}' data-live-search-no-submit="1">
-        <input
-            type="text"
-            class="live-search-input"
-            placeholder="Search employees or projects"
-            aria-label="Search employees or projects"
-            autocomplete="off"
-        >
-        <div class="live-search-dropdown hidden"></div>
-    </form>
-</div>
-<div class="card-grid">
-    <a class="card dashboard-link-card dashboard-stat-card" href="{{ url_for('employees.list_employees') }}">
-        <h3>Total Employees</h3>
-        <p>{{ total_employees }}</p>
-    </a>
-    <a class="card dashboard-link-card dashboard-stat-card" href="{{ url_for('projects.list_projects') }}">
-        <h3>Total Projects</h3>
-        <p>{{ total_projects }}</p>
-    </a>
-    <button id="deadlineAlertsTrigger" class="card dashboard-link-card dashboard-stat-card dashboard-modal-trigger" type="button">
-        <h3>Project Deadline Alerts</h3>
-        <p>{{ project_deadline_rows|length }}</p>
-    </button>
-</div>
+<div class="dashboard-page">
+    <div class="page-header dashboard-page-header">
+        <div>
+            <span class="section-kicker">Workspace Overview</span>
+            <h1>Dashboard</h1>
+        </div>
+    </div>
 
-<div class="card">
-    <h3>Top Employees</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Employee ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Position</th>
-                <th>Department</th>
-                <th>Overall Score</th>
-                <th>Attendance</th>
-                <th>Performance</th>
-                <th>Skill</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in top_employee_rows %}
-            <tr>
-                <td>{{ row.employee.id }}</td>
-                <td>
-                    <a class="btn-link" href="{{ url_for('employees.overall_scores_detail', employee_id=row.employee.id) }}">
-                        {{ row.employee.name }}
+    <div class="card dashboard-search-card dashboard-search-surface">
+        <form class="global-search-form live-search-form dashboard-search-form" data-live-search='{{ dashboard_search_items|tojson|safe }}' data-live-search-no-submit="1">
+            <input
+                type="text"
+                class="live-search-input"
+                placeholder="Search employees or projects"
+                aria-label="Search employees or projects"
+                autocomplete="off"
+            >
+            <div class="live-search-dropdown hidden"></div>
+        </form>
+    </div>
+
+    <div class="dashboard-stat-grid">
+        <a class="dashboard-stat-tile" href="{{ url_for('employees.list_employees') }}">
+            <span class="dashboard-stat-label">Total Employees</span>
+            <strong>{{ total_employees }}</strong>
+            <small>Active workforce in STAFFLY</small>
+        </a>
+        <a class="dashboard-stat-tile" href="{{ url_for('projects.list_projects') }}">
+            <span class="dashboard-stat-label">Projects in Workspace</span>
+            <strong>{{ total_projects }}</strong>
+            <small>All tracked delivery pipelines</small>
+        </a>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Avg Performance</span>
+            <strong>
+                {% if top_employee_rows %}
+                {{ ((top_employee_rows | map(attribute='performance_score') | sum) / (top_employee_rows | length)) | round(0) | int }}
+                {% else %}0{% endif %}
+            </strong>
+            <small>Top team performance snapshot</small>
+        </div>
+        <button id="deadlineAlertsTrigger" class="dashboard-stat-tile dashboard-stat-tile-button" type="button">
+            <span class="dashboard-stat-label">Deadline Alerts</span>
+            <strong>{{ project_deadline_rows|length }}</strong>
+            <small>Projects approaching end date</small>
+        </button>
+    </div>
+
+    <div class="dashboard-overview-grid">
+        <section class="card dashboard-analytics-card">
+            <div class="card-head-inline">
+                <div>
+                    <h3>Performance Overview</h3>
+                    <p>High-level ranking of the strongest employee profiles in the current workspace.</p>
+                </div>
+                <span class="tag soft-tag">Skill Depth</span>
+            </div>
+            <div class="dashboard-chart-bars">
+                {% for row in top_employee_rows[:5] %}
+                <div class="chart-bar-card">
+                    <span>{{ row.employee.name.split(' ')[0] }}</span>
+                    <div class="chart-bar-track">
+                        <div class="chart-bar-fill" style="width: {{ row.overall_score }}%;"></div>
+                    </div>
+                    <strong>{{ row.overall_score }}%</strong>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="dashboard-employee-list">
+                {% for row in top_employee_rows %}
+                <a class="dashboard-employee-row" href="{{ url_for('employees.overall_scores_detail', employee_id=row.employee.id) }}">
+                    <div class="dashboard-employee-avatar">
+                        {{ row.employee.name.split()[0][0] }}{% if row.employee.name.split()|length > 1 %}{{ row.employee.name.split()[-1][0] }}{% endif %}
+                    </div>
+                    <div class="dashboard-employee-copy">
+                        <strong>{{ row.employee.name }}</strong>
+                        <small>{{ row.employee.position }}{% if row.employee.department %} · {{ row.employee.department }}{% endif %}</small>
+                    </div>
+                    <div class="dashboard-employee-metrics">
+                        <span>Overall {{ row.overall_score }}%</span>
+                        <span>Performance {{ row.performance_score }}%</span>
+                    </div>
+                </a>
+                {% else %}
+                <div class="empty-alert-state">No employees found.</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <aside class="dashboard-side-column">
+            {% if top_employee_rows %}
+            {% set spotlight = top_employee_rows[0] %}
+            <section class="card spotlight-card">
+                <div class="spotlight-header">
+                    <div class="dashboard-employee-avatar spotlight-avatar">
+                        {{ spotlight.employee.name.split()[0][0] }}{% if spotlight.employee.name.split()|length > 1 %}{{ spotlight.employee.name.split()[-1][0] }}{% endif %}
+                    </div>
+                    <div>
+                        <h3>{{ spotlight.employee.name }}</h3>
+                        <p>{{ spotlight.employee.position }}</p>
+                    </div>
+                    <span class="spotlight-score">{{ spotlight.overall_score }}</span>
+                </div>
+                <div class="spotlight-tabs">
+                    <span class="active">Overview</span>
+                    <span>Skills</span>
+                    <span>Projects</span>
+                    <span>History</span>
+                </div>
+                <div class="spotlight-metric-list">
+                    <div class="spotlight-metric-item">
+                        <span>Attendance</span>
+                        <div class="spotlight-progress"><div style="width: {{ spotlight.attendance_score }}%;"></div></div>
+                        <strong>{{ spotlight.attendance_score }}%</strong>
+                    </div>
+                    <div class="spotlight-metric-item">
+                        <span>Performance</span>
+                        <div class="spotlight-progress"><div style="width: {{ spotlight.performance_score }}%;"></div></div>
+                        <strong>{{ spotlight.performance_score }}%</strong>
+                    </div>
+                    <div class="spotlight-metric-item">
+                        <span>Skill Score</span>
+                        <div class="spotlight-progress spotlight-progress-skill"><div style="width: {{ spotlight.skill_score }}%;"></div></div>
+                        <strong>{{ spotlight.skill_score }}%</strong>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="card alert-list-card">
+                <div class="card-head-inline">
+                    <div>
+                        <h3>Recent Project Alerts</h3>
+                        <p>Projects currently inside the deadline alert windows.</p>
+                    </div>
+                    <a class="btn-link" href="{{ url_for('projects.list_projects') }}">View All</a>
+                </div>
+                <div class="alert-stack">
+                    {% for row in project_deadline_rows %}
+                    <a class="alert-stack-item" href="{{ url_for('projects.project_detail', project_id=row.project.id) }}">
+                        <div>
+                            <strong>{{ row.project.name }}</strong>
+                            <small>{{ row.deadline_label }} · {{ row.project.end_date.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <span class="mini-badge">{{ row.team_size }}</span>
                     </a>
-                </td>
-                <td>{{ row.employee.email }}</td>
-                <td>{{ row.employee.position }}</td>
-                <td>{{ row.employee.department or '-' }}</td>
-                <td>
-                    <a class="btn-link" href="{{ url_for('employees.overall_scores_detail', employee_id=row.employee.id) }}">
-                        <strong>{{ row.overall_score }}%</strong>
-                    </a>
-                </td>
-                <td>
-                    <a class="btn-link" href="{{ url_for('employees.attendance_detail', employee_id=row.employee.id) }}">
-                        {{ row.attendance_score }}%
-                    </a>
-                </td>
-                <td>
-                    <a class="btn-link" href="{{ url_for('employees.performance_detail', employee_id=row.employee.id) }}">
-                        {{ row.performance_score }}%
-                    </a>
-                </td>
-                <td>
-                    <a class="btn-link" href="{{ url_for('employees.skill_score_detail', employee_id=row.employee.id) }}">
-                        {{ row.skill_score }}%
-                    </a>
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="9">No employees found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    {% else %}
+                    <div class="empty-alert-state">No active deadline alerts.</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </aside>
+    </div>
 </div>
 
 <div id="deadlineAlertsModal" class="modal hidden">
     <div class="modal-content medium-modal deadline-alerts-modal">
         <h3>Project Deadline Alerts</h3>
-        <p>Projects reaching their deadline in the next 3 days.</p>
+        <p>Projects currently inside the configured deadline alert windows.</p>
         <table>
             <thead>
                 <tr>

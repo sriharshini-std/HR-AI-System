@@ -2,42 +2,156 @@
 {% block title %}Overall Scores{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>Overall Scores</h1>
-</div>
+<div class="profile-page">
+    <section class="card profile-hero-card">
+        <div class="profile-hero-main">
+            <div class="dashboard-employee-avatar profile-avatar">
+                {{ employee.name.split()[0][0] }}{% if employee.name.split()|length > 1 %}{{ employee.name.split()[-1][0] }}{% endif %}
+            </div>
+            <div>
+                <span class="section-kicker">Employee Profile</span>
+                <h1>{{ employee.name }}</h1>
+                <p>{{ employee.position }}</p>
+            </div>
+        </div>
+        <div class="profile-hero-score">
+            <span>Overall Score</span>
+            <strong>{{ overall_score }}%</strong>
+        </div>
+    </section>
 
-<div class="card">
-    <p><strong>Employee:</strong> {{ employee.name }} ({{ employee.position }})</p>
-    <p><strong>Overall Score:</strong> {{ overall_score }}%</p>
-    <p><strong>Formula:</strong> Overall Score = (0.4 x Skill Score) + (0.3 x Performance Score) + (0.3 x Attendance Score)</p>
-</div>
+    <div class="dashboard-stat-grid compact-dashboard-stats">
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Attendance</span>
+            <strong>{{ attendance_score }}%</strong>
+            <small>Daily attendance consistency</small>
+        </div>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Performance</span>
+            <strong>{{ performance_score }}%</strong>
+            <small>Delivery and project quality</small>
+        </div>
+        <div class="dashboard-stat-tile">
+            <span class="dashboard-stat-label">Skill Score</span>
+            <strong>{{ skill_score }}%</strong>
+            <small>Current skill proficiency match</small>
+        </div>
+    </div>
 
-<div class="card">
-    <table>
-        <thead>
-            <tr>
-                <th>Score Type</th>
-                <th>Percentage</th>
-                <th>Open Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Attendance Score</td>
-                <td>{{ attendance_score }}%</td>
-                <td><a class="btn-link" href="{{ url_for('employees.attendance_detail', employee_id=employee.id) }}">View Attendance Details</a></td>
-            </tr>
-            <tr>
-                <td>Performance Score</td>
-                <td>{{ performance_score }}%</td>
-                <td><a class="btn-link" href="{{ url_for('employees.performance_detail', employee_id=employee.id) }}">View Performance Details</a></td>
-            </tr>
-            <tr>
-                <td>Skill Score</td>
-                <td>{{ skill_score }}%</td>
-                <td><a class="btn-link" href="{{ url_for('employees.skill_score_detail', employee_id=employee.id) }}">View Skill Details</a></td>
-            </tr>
-        </tbody>
-    </table>
+    <section class="score-visual-shell">
+        <div class="card score-donut-panel">
+            <div class="card-head-inline">
+                <div>
+                    <h3>Score Snapshot</h3>
+                    <p>A quick visual of skill, attendance, and performance score percentages.</p>
+                </div>
+            </div>
+            <div class="score-donut-grid">
+                <div class="score-donut-card">
+                    <div class="score-donut score-donut-skill" style="--score: {{ skill_score }};">
+                        <div class="score-donut-center">
+                            <span>Skill</span>
+                            <strong>{{ skill_score }}%</strong>
+                        </div>
+                    </div>
+                    <p>Current proficiency fit for the skills tracked in the system.</p>
+                </div>
+                <div class="score-donut-card">
+                    <div class="score-donut score-donut-attendance" style="--score: {{ attendance_score }};">
+                        <div class="score-donut-center">
+                            <span>Attendance</span>
+                            <strong>{{ attendance_score }}%</strong>
+                        </div>
+                    </div>
+                    <p>Consistency across presence, punctuality, and work-hour completion.</p>
+                </div>
+                <div class="score-donut-card">
+                    <div class="score-donut score-donut-performance" style="--score: {{ performance_score }};">
+                        <div class="score-donut-center">
+                            <span>Performance</span>
+                            <strong>{{ performance_score }}%</strong>
+                        </div>
+                    </div>
+                    <p>Delivery quality, task completion, deadlines met, and project feedback.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card score-bar-panel">
+            <div class="card-head-inline">
+                <div>
+                    <h3>Score Graph</h3>
+                    <p>Relative comparison of the three score components used for the overall score.</p>
+                </div>
+            </div>
+            <div class="score-bar-chart">
+                <div class="score-bar-row">
+                    <div class="score-bar-copy">
+                        <strong>Skill Score</strong>
+                        <span>Primary weighted factor for overall score</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill score-bar-fill-skill" style="width: {{ skill_score }}%;"></div>
+                    </div>
+                    <strong class="score-bar-value">{{ skill_score }}%</strong>
+                </div>
+                <div class="score-bar-row">
+                    <div class="score-bar-copy">
+                        <strong>Attendance Score</strong>
+                        <span>Measures consistency, punctuality, and working hours</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill score-bar-fill-attendance" style="width: {{ attendance_score }}%;"></div>
+                    </div>
+                    <strong class="score-bar-value">{{ attendance_score }}%</strong>
+                </div>
+                <div class="score-bar-row">
+                    <div class="score-bar-copy">
+                        <strong>Performance Score</strong>
+                        <span>Reflects project outcomes, completion, and feedback</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill score-bar-fill-performance" style="width: {{ performance_score }}%;"></div>
+                    </div>
+                    <strong class="score-bar-value">{{ performance_score }}%</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card profile-table-card">
+        <div class="card-head-inline">
+            <div>
+                <h3>Score Breakdown</h3>
+                <p>Overall Score = (0.4 x Skill Score) + (0.3 x Performance Score) + (0.3 x Attendance Score)</p>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Score Type</th>
+                    <th>Percentage</th>
+                    <th>Open Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Attendance Score</td>
+                    <td>{{ attendance_score }}%</td>
+                    <td><a class="btn-link" href="{{ url_for('employees.attendance_detail', employee_id=employee.id) }}">View Attendance Details</a></td>
+                </tr>
+                <tr>
+                    <td>Performance Score</td>
+                    <td>{{ performance_score }}%</td>
+                    <td><a class="btn-link" href="{{ url_for('employees.performance_detail', employee_id=employee.id) }}">View Performance Details</a></td>
+                </tr>
+                <tr>
+                    <td>Skill Score</td>
+                    <td>{{ skill_score }}%</td>
+                    <td><a class="btn-link" href="{{ url_for('employees.skill_score_detail', employee_id=employee.id) }}">View Skill Details</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
 </div>
 {% endblock %}
